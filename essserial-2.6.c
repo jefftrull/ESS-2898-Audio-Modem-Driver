@@ -211,7 +211,6 @@ static inline void transmit_chars(struct linmodem_port *p)
 		ess_serial_outp(p, UART_TX, p->port.x_char);
 		p->port.icount.tx++;
 		p->port.x_char = 0;
-		info("transmitting an xchar");
 		return;
 	}
 
@@ -331,7 +330,7 @@ static irqreturn_t  ess_interrupt(int irq, void *dev_id,
 			     : "=m" (i387));
 
 	/* ESS internal interrupt handling */
-	esscom_do_interrupt();
+	esscom_hw_interrupt();
 
 	__asm__ __volatile__("frstor %0": :"m" (i387));
 	__asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));
@@ -385,11 +384,8 @@ void esscom_do_timer_tick (unsigned long data) {
         struct linmodem_port *p;
 	static union i387_union i387;
 	static unsigned long cr0;
-/*	static unsigned long flags; */
 
 	p = (struct linmodem_port *) data;
-
-/*	spin_lock_irqsave(&p->port.lock, flags); */
 
 	/* save fpu state */
 	__asm__ __volatile__("mov %%cr0,%0 ; clts" : "=r" (cr0));
@@ -405,8 +401,6 @@ void esscom_do_timer_tick (unsigned long data) {
 
 
     essserial_handle_port(p, NULL);
-
-/*    spin_unlock_irqrestore(&p->port.lock, flags); */
 
     /* reset timer for 10ms from now */
     mod_timer(&p->timer, jiffies + HZ / 100);
@@ -426,8 +420,6 @@ static int ess_startup(struct linmodem_port *p)
 	info("ESS initialization. Country code is %d.\n", country_code);
 
 	esscom_hw_setup(p->port.iobase, p->port.irq);
-
-	/* ESSInitVUartVars(); */
 
 	/* BOZO how do I set the country code for ESS? */
 
@@ -510,9 +502,8 @@ static void ess_shutdown(struct linmodem_port *p)
 
 	dbg();
 
-	info("ess_shutdown called");
-
-	/* BOZO surely we have to do something to shut down the modem HW! */
+	/* tell the hardware to stop issuing interrupts and hang up */
+	esscom_hw_shutdown();
 
 	/*
 	 * Disable interrupts from this port

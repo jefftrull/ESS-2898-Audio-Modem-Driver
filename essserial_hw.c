@@ -4,7 +4,7 @@
  *      is therefore NOT covered by the GPL.
  *
  *      This file contains mostly stuff that links into or overrides
- *      the proprietary binary esscom_emu-fix.o
+ *      the proprietary binary esscom.o
  *
  */
  
@@ -66,6 +66,8 @@ unsigned long Get_System_Time(void);
 
 unsigned long ess_jiffies_start = 0;
 #define JIFFIES_OLDSCHOOL ( ((jiffies - ess_jiffies_start) * 100) / HZ)
+
+unsigned long last_tick_jiffies = 0;
 
 /* a substitute for the existing esscom_initialize, in the binary */
 /* it used old kernel APIs.  this is a translation of the disassembly with 2.6 updates */
@@ -129,7 +131,7 @@ void esscom_initialize(void) {
     init_at_var();
 
     if (DownLoadFirmware(gwBaseIO, gwBaseEDSP) == 0) {
-	info("DownLoadFirmware failed!\n");
+	err("DownLoadFirmware failed!\n");
 	return;
     }
 
@@ -141,11 +143,17 @@ void esscom_initialize(void) {
     timeout = 0x28;
     modem_status = 0;
     timer_cnt = 0;
+    last_tick_jiffies = jiffies;
     BreakFlag = 0;
 
 }
 
-EXPORT_SYMBOL(esscom_initialize);
+void esscom_hw_shutdown (void) {
+    /* I think this is the right thing to do to shut down the hw and prevent interrupts */
+    stop_modem(0);
+}
+
+EXPORT_SYMBOL(esscom_hw_shutdown);
 
 /* a translation of the disassembled modem_task function to permit linking in modern kernels */
 
@@ -160,7 +168,6 @@ void modem_task(void) {
 	(*proc_dte_input)();
     }
     else if (!critical_section) {
-	info("calling proc_v80_input() at %p", proc_v80_input);
 	proc_v80_input();
     }
 
@@ -207,7 +214,6 @@ unsigned long Get_System_Time (void) {
 /* another scaled binary-internal time measure based on jiffies */
 unsigned long CurrentBlkTime (void) {
     unsigned long ret;
-    unsigned int minutes, seconds, hundredths;
 
     /*
      * normally jiffies_oldschool = (100/HZ)*jiffies, but since a multiply is done first,
@@ -218,62 +224,6 @@ unsigned long CurrentBlkTime (void) {
     ret = ((100 * 100) / HZ) * (jiffies - ess_jiffies_start);
 
     return ret;
-
-    /* figure out how I might interpret it, and see if I can match binary */
-    minutes = ret / (60 * 10000);
-    seconds = (ret - (60 * 10000 * minutes)) / 10000;
-    hundredths = (ret - (60 * 10000 * minutes) - (10000 * seconds)) / 100 ;
-    info("my interpretation of the current time: %3d:%2d:%2d", minutes, seconds, hundredths);
-
-    return ret;
-}
-
-/*
- * powerup_get_PTT_country
- */
-/* BOZO no one seems to call this? */
-void powerup_get_PTT_country (void) {
-    unsigned char new_country_code;
-
-    PTT_onhook_timer = CurrentBlkTime();
-    AdjustOnhookTime(&PTT_onhook_timer);
-    ToneTable = dtmf_od;
-    if (CardID == 0xa) {
-	/* mine not to reason why */
-	CardID = 0x2;
-    }
-    if (s[0x58] > 0x23) {
-	s[0x58] = 0xff;
-    }
-    if ((RealID - 0x19) <= 1) {
-	/* this is odd - esscom_initialize accesses with bytes but this uses a full word */
-	outw(0x10, gwBaseIO);
-	CodecType = ~(inw(gwBaseIO + 2) >> 14) & 0x1;
-    }
-    if ((new_country_code = PTTFuncOption[0]) != 0xff) {
-	if (new_country_code > 0x23) {
-	    new_country_code = 0;
-	}
-    }
-    else if ((new_country_code = s[0x58]) != 0xff) {
-	s_parm[0x160] = new_country_code;
-    }
-    else if ((new_country_code = GlobalOption) == 0xff) {
-	new_country_code = 0;
-    }
-	    
-    CountryCode = new_country_code;
-
-    GetCountryParameter();
-    PTT_s_parm_copy();
-    DAAStatus();
-    SetSpeakerVolum(1);
-
-    if (startSystemTime == 0) {
-	startSystemTime = JIFFIES_OLDSCHOOL;
-    }
-
-    ReadBlackList();
 
 }
 
@@ -517,20 +467,26 @@ void esscom_hw_setup (u16 iobase, u16 irq) {
 EXPORT_SYMBOL(esscom_hw_setup);
 
 /* to keep essserial clean of binary interfaces */
-void esscom_do_interrupt (void) {
+void esscom_hw_interrupt (void) {
 
     rs_interrupt_single();
 }
 
-EXPORT_SYMBOL(esscom_do_interrupt);
-
-unsigned long last_report = 0;
+EXPORT_SYMBOL(esscom_hw_interrupt);
 
 /* work to do when the timer goes off */
 /* a translation of ess_rs_timer */
 void esscom_hw_timer_tick (struct linmodem_port *p) {
 
-    timer_cnt += 10;   /* BOZO seems like we should update this with the actual elapsed time */
+    /*
+     * old driver added 10 each time timer_tick went off.  Unfortunately we don't get
+     * a tick exactly every 10ms if HZ is not a multiple of 100, so instead add the
+     * number of ms since the last tick
+     */
+
+    timer_cnt += (1000 / HZ) * (jiffies - last_tick_jiffies);
+    last_tick_jiffies = jiffies;
+
     sys_timer_cnt = Get_System_Time();   /* this is one of those twice-scaled (once ess, once HZ change) time values */
 
     modem_task();
