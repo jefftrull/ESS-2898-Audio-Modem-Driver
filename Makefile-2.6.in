@@ -1,0 +1,197 @@
+# Makefile.kbuild
+# Pre-builds binary.a for whatever target, then uses the kernel build
+# system to create the modules linmodem.ko, ess.ko and ess_hw.ko.
+
+MODULE_DIR=$(DESTDIR)/lib/modules/$(KERNEL_VER)/misc
+
+CFLAGS += -DVERSION=\"$(VERSION)\" -mhard-float
+
+ifeq ($(DEBUG),1)
+CFLAGS += -DLINMODEM_DEBUG=1 -DESS_DEBUG=1
+endif
+
+BIN_DIR = lib/
+
+# symbols from the ESS binary that need to be global so they can be exported to the GPL modules
+GLOBALIZE_BIN_SYM_FLAGS = --globalize-symbol=rs_interrupt_single --globalize-symbol=esscom_info
+
+# symbols from the ESS binary that must be "weakened" so we get no warnings when we override them
+WEAKEN_BIN_SYM_FLAGS = -W powerup_get_PTT_country -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime
+
+OBJCOPY_FLAGS = $(GLOBALIZE_BIN_SYM_FLAGS) $(WEAKEN_BIN_SYM_FLAGS)
+
+# new relocation entries to add to the binary so that our substitute routines will be called
+NEW_RELOC_FLAGS = -a ChkBlkTime,0xc467 \
+		  -a ChkBlkTime,0xc4e9 \
+		  -a ChkBlkTime,0xc9e9 \
+		  -a ChkBlkTime,0xcbd2 \
+		  -a Get_System_Time,0x107cd \
+		  -a Get_System_Time,0x13c85 \
+		  -a Get_System_Time,0x13c91 \
+		  -a Get_System_Time,0x13e49 \
+		  -a Get_System_Time,0x13e51 \
+		  -a Get_System_Time,0x14389 \
+		  -a Get_System_Time,0x14391 \
+		  -a CurrentBlkTime,0xc5fa \
+		  -a CurrentBlkTime,0xc605 \
+		  -a CurrentBlkTime,0xc84c \
+		  -a CurrentBlkTime,0xcc71 \
+		  -a CurrentBlkTime,0xcccd \
+		  -a CurrentBlkTime,0xd040 \
+		  -a systemTime,0xc3f6 \
+		  -a systemTime,0xecd1
+
+
+# existing relocs to change from one symbol to another (probably provided by us)
+# currently the only cases are routines that are called only by unused functions in the binary
+# making them call ess_unused_function will ensure that is true
+CHANGE_RELOC_FLAGS = -c pci_find_device_R0ee75d4c,ess_unused_function \
+	-c ess22tty_flip_buffer_push,ess_unused_function \
+	-c ess22release_region,ess_unused_function \
+	-c __generic_copy_from_user_R116166aa,ess_unused_function \
+	-c pci_write_config_word_Rd9cc3b03,ess_unused_function \
+	-c pci_read_config_word_R8764d15f,ess_unused_function \
+	-c free_pages_R234535e0,ess_unused_function \
+	-c ess_tty_register_driver,ess_unused_function \
+	-c __get_free_pages_R5b3b8f78,ess_unused_function \
+	-c ess22check_region,ess_unused_function \
+	-c request_irq_R0c60f2e0,ess_unused_function \
+	-c ess22__wake_up,ess_unused_function \
+	-c free_irq_Rf20dabd8,ess_unused_function \
+	-c __verify_write_R203afbeb,ess_unused_function \
+	-c ess22interruptible_sleep_on,ess_unused_function \
+	-c kfree_s,ess_unused_function \
+	-c ess_tty_unregister_driver,ess_unused_function \
+	-c sprintf_R3c2c5af5,sprintf \
+	-c printk_R1b7d4074,ess_unused_function \
+	-c ess22request_region,ess_unused_function \
+	-c ess22tty_get_baud_rate,ess_unused_function \
+	-c ess22kmalloc,ess_unused_function \
+	-c pcibios_present_R520a75b9,ess_unused_function \
+	-c tty_hung_up_p_R4afe0fd5,ess_unused_function \
+	-c panic_R01075bf0,ess_unused_function
+
+# relocs to remove, as they are undefined symbols in routines that won't be called
+# these are generally data symbols, as unused functions get pointed to ess_unused_function
+DELETE_RELOC_FLAGS = -d bh_mask_count_Re7f2f851 \
+	-d timer_active_R20db258c \
+	-d cap_bset_R59ab4080 \
+	-d tty_std_termios_R89ac5254 \
+	-d boot_cpu_data_R4d12d1d7 \
+	-d timer_table_Re6d34e9e \
+	-d bh_base_R7336c1f0 \
+	-d bh_active_Rfff9d0a3 \
+	-d bh_mask_Rbc9e6593 \
+	-d jiffies_R0da02d67
+
+# the driver appears to have the DCD (bit 7) and RI (bit 6) bits of the MSR confused.
+# fix it, in case this is causing problems
+BUGFIX_FLAGS = -m 0x1b22=0x80 \
+	       -m 0x1b2a=0x40 \
+	       -m 0x1b9a=0xbf \
+	       -m 0x1e81=0x80 \
+	       -m 0x1e8f=0x7f \
+	       -m 0x2b0c=0x80 \
+	       -m 0x2b10=0x80 \
+	       -m 0x2b3c=0x7f \
+	       -m 0x2b6b=0x80 \
+	       -m 0x2b7c=0x7f \
+	       -m 0x461a=0x80 \
+	       -m 0x4628=0x7f \
+	       -m 0xb6a7=0x7f \
+	       -m 0xb6b8=0x80 \
+	       -m 0xbfa2=0x80 \
+	       -m 0xbfb0=0x7f \
+	       -m 0x2578e=0x80
+
+
+RELOC_FLAGS = $(NEW_RELOC_FLAGS) $(CHANGE_RELOC_FLAGS) $(DELETE_RELOC_FLAGS) $(BUGFIX_FLAGS)
+
+obj-m += linmodem.o
+obj-m += esscom.o
+obj-m += esscom_hw.o
+linmodem-objs := linmodem-2.6.o
+esscom-objs := essserial-2.6.o essserial_pci.o
+esscom_hw-objs := binary.a essserial_hw.o
+
+BIN_OBJS = $(BIN_DIR)esscom_emu-fix.2.6.o
+
+EXTRA_LDFLAGS := -z muldefs
+
+all: 	binary.a
+	make -C $(KERNEL_DIR) M=$(PWD)
+
+verbose: binary.a
+	make -C $(KERNEL_DIR) M=$(PWD) V=1
+
+clean:
+	rm -f linmodem-2.6.o essserial-2.6.o essserial_hw.o essserial_pci.o
+	rm -f linmodem.o esscom.o esscom_hw.o
+	rm -f linmodem.ko esscom.ko esscom_hw.ko
+	rm -f linmodem.mod.c esscom.mod.c esscom_hw.mod.c
+	rm -f linmodem.mod.o esscom.mod.o esscom_hw.mod.o
+	rm -f .built-in.o.cmd built-in.o
+	rm -f .esscom.ko.cmd .esscom.mod.o.cmd .esscom.o.cmd
+	rm -f .esscom_hw.ko.cmd .esscom_hw.mod.o.cmd .esscom_hw.o.cmd
+	rm -f .linmodem.ko.cmd .linmodem.mod.o.cmd .linmodem.o.cmd
+	rm -f .linmodem-2.6.o.cmd .essserial-2.6.o.cmd .essserial_hw.o.cmd
+	rm -f .essserial_pci.o.cmd
+	rm -rf .tmp_versions
+	rm -f binary.a
+	rm -f $(BIN_DIR)esscom_emu-fix.2.6.o $(BIN_DIR)esscom_emu-fix.cleaned.o
+	rm -f fixup_relocs
+
+.s.o:
+	@echo "  CC	$@"
+	@gcc -c $< -o $@
+
+$(BIN_DIR)esscom_emu-fix.2.6.o: $(BIN_DIR)esscom_emu-fix.o fixup_relocs
+	objcopy $(OBJCOPY_FLAGS) \
+	$(BIN_DIR)esscom_emu-fix.o $(BIN_DIR)esscom_emu-fix.cleaned.o
+	./fixup_relocs $(RELOC_FLAGS) $(BIN_DIR)esscom_emu-fix.cleaned.o $(BIN_DIR)esscom_emu-fix.2.6.o
+
+fixup_relocs: fixup_relocs.c
+	cc -o fixup_relocs fixup_relocs.c -lbfd -liberty
+
+binary.a: $(BIN_DIR)esscom_emu-fix.2.6.o
+	@echo "  LD	binary.a"
+	@ld -d -i $(BIN_OBJS) -o binary.a
+
+insmod:
+	/sbin/insmod linmodem.ko
+	/sbin/insmod esscom_hw.ko
+	/sbin/insmod esscom.ko
+
+rmmod:
+	/sbin/rmmod esscom
+	/sbin/rmmod esscom_hw
+	/sbin/rmmod linmodem
+
+install:
+	rm -f /dev/ttyS_ESS0
+ifdef UDEV
+	echo "KERNEL=\"ttyS_ESS0\", SYMLINK=\"modem\"" > /etc/udev/rules.d/ess.rules
+else
+	mknod /dev/ttyS_ESS0 c 62 64
+	chmod 666 /dev/ttyS_ESS0
+	ln -sf /dev/ttyS_ESS0 /dev/modem
+endif
+	install -D -m 644 linmodem.ko $(MODULE_DIR)/linmodem.ko
+	install -D -m 644 ess.ko $(MODULE_DIR)/ess.ko
+	install -D -m 644 ess_hw.ko $(MODULE_DIR)/ess_hw.ko
+	/sbin/depmod -a
+
+uninstall:
+	/sbin/modprobe -r linmodem ; echo -n
+	/sbin/modprobe -r ess_hw ; echo -n
+	/sbin/modprobe -r ess ; echo -n
+	$(RM) $(MODULE_DIR)/linmodem.ko
+	$(RM) $(MODULE_DIR)/ess_hw.ko
+	$(RM) $(MODULE_DIR)/ess.ko
+	/sbin/depmod -a
+ifdef UDEV
+	rm /etc/udev/rules.d/ess.rules
+else
+	rm -f /dev/modem /dev/ttyS_ESS0
+endif
+

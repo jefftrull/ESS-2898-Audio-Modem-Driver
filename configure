@@ -1,0 +1,402 @@
+#!/bin/bash
+# configure script for ess based modems
+# derived from configure script for pctel based modems
+# history entries below date from pctel
+# (w) by J. Stifter
+# $Id: configure,v 1.1 2006-04-13 16:41:51 jet Exp $
+#
+# Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
+# Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
+#
+# Modified to detect type of tty_struct.count for Fedora Kernels
+# Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 21/04/2004
+#
+# Modified to cope with 2.6 kernels.  Also removed -DAUDIO_ROUTING from via686a
+# and sis builds, as the libraries are missing the necessary symbols.  They did
+# appear in 0.9.7-6, but not in 0.9.7-9, upon which this build is based.
+# Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 30/03/2005
+#
+# Modified to cope with SuSE 9.3 kernel source includes.  The asm/mach-default
+# directory is not under /lib/modules/`uname -n`/build, instead we must revert
+# to /usr/src/linux.  Thanks to Jeff Trull for this.
+# Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 22/07/2005
+#
+# Modified to cope with "lspci -n" in Debian Sarge.  This does not output the
+# word "Class" in the second column and throws the auto detection out.  Thanks
+# to Martin Campbell for reporting this.
+# Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 22/07/2005
+#
+version=0.1
+
+##################################################################
+# change the parameters below, if needed (this is normally only
+# needed if you don't have a /lib/modules/<kernel>/build link).
+##################################################################
+kernel_src=/usr/src/linux
+kernel_inc=${kernel_src}/include
+##################################################################
+
+
+################################################################
+# autodetection
+# orignally (w) by Basilio Kublik & others
+# Some of this code was shamelessly stolen from the lucent 
+# driver's scanPCI script
+################################################################
+# returns: target: pct789, cm8738, i8xx, sis, via686a, error
+################################################################
+function autodetection
+{
+   echo -n "detecting your modem..."
+   target=error
+   LSPCI_PATH="/bin /usr/bin /sbin /usr/sbin"
+   for i in ${LSPCI_PATH}
+   do
+      if [ -x ${i}/lspci ]
+      then
+         LSPCI=${i}/lspci
+      fi
+   done
+   if [ ! -x "${LSPCI}" ]
+   then
+      echo '** error'
+      echo "lspci not found in ${LSPCI_PATH}"
+      return
+   fi
+      
+# The following modems are autodetected (note that detecting an AC'97
+# controller is no guarentee that the codec behind it is supported):
+#
+#   125d:2898    ESS Technology ES2898 Modem (rev 03)
+#
+
+   DEVICES="0x125d:0x2898"
+
+   found="no"
+   
+   # Test the lspci output to see if the 2nd column is "Class"
+   # If yes, the pci id if field 4, else it is field 3
+   
+   class=`${LSPCI} -n | head -1 | cut -d' ' -f2`
+   if [ ${class} = "Class" ] ; then
+      fid=4
+   else
+      fid=3
+   fi
+
+   for PCIDEV in `${LSPCI} -n | cut -d' ' -f${fid}`
+   do
+      DEVVEN=$(( 0x`echo ${PCIDEV} | cut -d':' -f1` + 0 ))
+      DEVNUM=$(( 0x`echo ${PCIDEV} | cut -d':' -f2` + 0 ))
+      for DEV in ${DEVICES}
+      do
+         VENDOR=$(( `echo ${DEV} | cut -d':' -f1` + 0 ))
+         DEVMIN=$(( `echo ${DEV} | cut -d':' -f2 | cut -d'-' -f1` + 0 ))
+         DEVMAX=$(( `echo ${DEV} | cut -d':' -f2 | cut -d'-' -f2` + 0 ))
+
+         if [ ${DEVVEN} -eq ${VENDOR} -a ${DEVNUM} -ge ${DEVMIN} -a ${DEVNUM} -le ${DEVMAX} ]
+         then
+            found="yes"
+            MODEM_VENDOR=0x`echo ${PCIDEV} | cut -d':' -f1`
+         fi
+      done
+
+      if test $found = "yes"; then
+         eval test \"\$modem_${MODEM_VENDOR}\" = yes && continue
+         eval modem_${MODEM_VENDOR}=yes      
+	 target=ess
+      fi
+   done
+   
+   if [ "${found}" = "no" ]; then
+      echo '** error'
+      echo "the supported modem (ESS Technology ES2898) is not present on your system"
+   else
+      echo "found. Your modem is a ${target} type modem."
+   fi
+}
+
+
+################################################################
+# find_kernel_includes
+################################################################
+# returns: $kernel_inc=error or path to kernel includes
+################################################################
+function find_kernel_includes
+{
+   echo -n "searching for kernel includes..."
+   
+   # look in /lib/modules/<kernel>/build/include
+   if [ -r "/lib/modules/`uname -r`/build/include/linux/version.h" ]
+   then
+      kernel_src="/lib/modules/`uname -r`/build"
+      kernel_inc="${kernel_src}/include"
+      echo found at ${kernel_inc}
+      return
+   fi
+
+   # look in $kernel_inc (defaults to /usr/src/linux)
+   if [ -r "$kernel_inc/linux/version.h" ]
+   then
+      echo found at ${kernel_inc}
+      return
+   fi
+
+   # automatic search: look 1.) in /usr/src/linux* and 2. in /usr/src/*
+   v=`find /usr/src/linux* -name "version.h" 2>/dev/null | \
+      grep "include/linux/version.h" | head -1`
+   if [ -z $v ]
+   then
+      v=`find /usr/src/ -name "version.h" 2>/dev/null | \
+         grep "include/linux/version.h" | head -1`
+   fi
+   if [ -z $v ]
+   then
+      echo "** error"
+      echo "could not find any kernel sources in /usr/src"
+      kernel_inc=error
+   else
+      kernel_inc=`echo ${v%linux\/version.h}`
+      kernel_src=`dirname ${kernel_inc}`
+      echo found at $kernel_inc
+      return
+   fi
+
+   # manual input, ask user about the sources
+   echo you have either not installed your kernel sources
+   echo or your kernel sources are installed in another place then
+   echo /usr/src/
+   echo -n "please enter your correct kernel source tree, e.g. /usr/src/linux: "
+   read kernel_src
+   kernel_inc=${kernel_src}/include
+   if [ ! -r "${kernel_inc}/linux/version.h" ]
+   then
+      echo "** error"
+      echo "could not find a version.h file at these kernel sources"
+      echo "please read the FAQ about installation requirements"
+      kernel_inc=error
+      return
+   fi
+   echo found version.h at ${kernel_inc}
+}
+
+
+##################################################################
+# 0) checking params
+##################################################################
+# we don't take any parameters, it's always "auto"
+auto_detection=1
+auto_install=1
+
+##################################################################
+# 1) determination of system specific values
+##################################################################
+
+#
+# find out kernel version and link ptserial.c
+#
+echo -n "checking for running kernel version..."
+if [[ `perl -v` ]]  
+then
+   kernel_version=`uname -r`
+else
+   echo '** error'
+   echo "couldn't find perl to determine your kernel version."
+   echo -n "please type your running kernel version, e.g. 2.4.7-ac2 manually: "
+   read kernel_version
+fi
+main=`echo ${kernel_version} | perl -e 'while(<>){
+  /^([0-9]*)\.([0-9]*)\.([0-9]*).*$/ ;
+  print "$1\n";
+}'`
+mid=`echo ${kernel_version} | perl -e 'while(<>){
+  /^([0-9]*)\.([0-9]*)\.([0-9]*).*$/ ;
+  print "$2\n";
+}'`
+sub=`echo ${kernel_version} | perl -e 'while(<>){
+  /^([0-9]*)\.([0-9]*)\.([0-9]*).*$/ ;
+  print "$3\n";
+}'`
+
+if [ ${main} -ne 2 -o ${mid} -ne 6 ]
+then
+   echo '** error'
+   echo your kernel version is: ${main}.${mid}.${sub}
+   echo this package supports only 2.6 kernels.
+   exit 1
+fi
+
+echo "${main}.${mid}.${sub}"
+
+
+#
+# clean everything
+#
+rm -f Makefile
+make -f Makefile-${main}.${mid}.in clean >/dev/null
+
+
+#
+# use either essserial-2.4.6, essserial-2.4.7 ((2.4.7 and later) or
+# essserial-2.6 (2.6.0 and later)
+#
+
+essserial=essserial-2.6.c
+
+#
+# find out gcc
+#
+echo -n "checking for gcc..."
+gcc_version=`gcc -dumpversion`
+if [ -z $gcc_version ]
+then
+   echo "** error"
+   echo no suitable gcc version could be found.
+   echo please install gcc.
+   exit 1
+fi
+echo "$gcc_version"
+
+#
+# find kernel sources
+#
+find_kernel_includes
+if [ $kernel_inc = "error" ]
+then
+   exit 1
+fi
+
+#
+# find modversions.h (2.4) or autoconf.h (2.6)
+# on 2.6 check for asm/mach-default and modpost
+#
+   echo -n "checking for autoconf.h..."
+   if [ ! -r ${kernel_inc}/linux/autoconf.h ]
+   then
+      echo "** error"
+      echo autoconf.h could not be found
+      echo you probably need to configure your kernel, please read the FAQ
+      echo about no autoconf.h file.
+      exit 1
+   fi
+   modversions=${kernel_inc}/linux/autoconf.h
+   echo "${modversions}"
+   
+   echo -n "checking for asm/mach-default..."
+   if [ ! -d ${kernel_inc}/asm/mach-default ]
+   then
+      # SuSE 9.3 doesn't have 'asm' under the build directory, so revert to
+      # /usr/src/linux
+      if [ -d /usr/src/linux/include/asm/mach-default ]
+      then
+          kernel_inc=/usr/src/linux/include
+      else
+          echo "** error"
+          echo include/asm/mach-default directory could not be found
+          echo you probably need to configure your kernel, please read the FAQ
+          echo about no include/asm/mach-default directory.
+          exit 1
+      fi
+   fi
+   echo "yes"
+   extra_includes=-I${kernel_inc}/asm/mach-default
+   
+
+#
+# find out exact kernel version from version.h file
+#
+echo -n "checking for kernel version in version.h..."
+cat >t.c <<EOF
+#include <stdio.h>
+#include "$kernel_inc/linux/version.h"
+int main() {
+   printf("%s\n", UTS_RELEASE);
+   return 0;
+}
+EOF
+gcc -o t t.c
+uts_release=`./t`
+rm ./t ./t.c
+if [ -z ${uts_release} ]
+then
+   echo "** error"
+   echo "could not determine a proper UTS_RELEASE"
+   exit 1
+fi
+echo "UTS_RELEASE is ${uts_release}"
+
+#
+# are we on a system with tty_struct.count defined as an atomic_t
+#
+echo -n "checking type of tty_struct.count..."
+cat >t.c << EOF
+#include "linux/tty.h"
+int main() {
+  struct tty_struct tty;
+  if( atomic_read(&tty.count) == 1 ) {}
+  return 0;
+}
+EOF
+gcc -D__KERNEL__ -I${kernel_inc} -o t t.c >/dev/null 2>&1
+tty_count_atomic=$?
+rm -f ./t ./t.c
+if [ ${tty_count_atomic} -eq 0 ]
+then
+  echo "atomic_t"
+  have_tty_count_atomic=-DHAVE_TTY_COUNT_ATOMIC
+else
+  echo "int"
+  unset have_tty_count_atomic
+fi
+
+#
+# does this system have udev?
+#
+echo -n "checking for presence of udev..."
+if [ -d /etc/udev/rules.d ]
+then
+  echo "present"
+  have_udev=TRUE
+else
+  echo "not present, using old /dev/modem link style"
+  unset have_udev
+fi
+
+##################################################################
+# 2) determination of HAL type
+##################################################################
+autodetection
+
+if [ ${target} = "error" ]
+then
+   exit 1
+fi
+
+##################################################################
+# 3) configuration of the makefile
+##################################################################
+
+case "${target}" in
+   ess)
+      hal=HAL_ESS
+      ;;
+   *)
+      echo "** internal error"
+esac
+
+cat >Makefile <<EOF
+# Makefile generated from configure at `date`
+
+# CFLAGS options
+KERNEL_DIR=${kernel_src}
+KERNEL_VER=${uts_release}
+VERSION=${version}
+HAL=${hal}
+TARGET=${target}
+
+# install options
+UDEV=${have_udev}
+
+EOF
+
+cat Makefile-${main}.${mid}.in >> Makefile
