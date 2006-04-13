@@ -55,10 +55,6 @@ struct plat_ptserial_port {
 	unsigned int	flags;		/* UPF_* flags */
 };
 
-#include "include/pctel.h"
-#include "include/vuart.h"
-#include "include/halwraps.h"
-
 /* uart_port doesn't contain region_0, region_1, so we map to iobase, membase */
 #define pctel_region_0(x)    (x).iobase
 #define pctel_region_0_p(x)  (x)->iobase
