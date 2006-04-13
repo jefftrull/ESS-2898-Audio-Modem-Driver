@@ -2,5 +2,6 @@
 
 /* from essserial_hw.c */
 extern void esscom_hw_setup(u16, u16);
-extern void esscom_do_interrupt(void);
+extern void esscom_hw_interrupt(void);
 extern void esscom_hw_timer_tick(struct linmodem_port *);
+extern void esscom_hw_shutdown(void);
