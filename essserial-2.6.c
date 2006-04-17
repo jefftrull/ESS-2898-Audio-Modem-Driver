@@ -398,7 +398,7 @@ void esscom_do_timer_tick (unsigned long data) {
 			 "fwait"
 			 : "=m" (i387));
 
-    esscom_hw_timer_tick(p);
+    esscom_hw_timer_tick();
 
     __asm__ __volatile__("frstor %0": :"m" (i387));
     __asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));

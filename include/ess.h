@@ -13,7 +13,7 @@
 /* from essserial_hw.c */
 extern void esscom_hw_setup(u16, u16, int);
 extern void esscom_hw_interrupt(void);
-extern void esscom_hw_timer_tick(struct linmodem_port *);
+extern void esscom_hw_timer_tick(void);
 extern void esscom_hw_shutdown(void);
 extern int  esscom_hw_check_modem(int vendor);
 

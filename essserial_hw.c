@@ -24,7 +24,6 @@
 #include <asm/io.h>
 
 #include "include/ess_bin.h"
-#include "linmodem-2.6.h"
 
 #include <linux/serial_reg.h>
 
@@ -475,7 +474,7 @@ EXPORT_SYMBOL(esscom_hw_interrupt);
 
 /* work to do when the timer goes off */
 /* a translation of ess_rs_timer */
-void esscom_hw_timer_tick (struct linmodem_port *p) {
+void esscom_hw_timer_tick (void) {
 
     /*
      * old driver added 10 each time timer_tick went off.  Unfortunately we don't get

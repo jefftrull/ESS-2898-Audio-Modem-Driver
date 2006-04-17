@@ -513,7 +513,7 @@ static int __init essserial_pci_init(void)
         return ret;
 
     /* Attempt to release any drivers that may have already claimed our modem */
-    for_each_pci_dev(dev)
+    while( (dev = pci_find_device( PCI_ANY_ID, PCI_ANY_ID, dev )) != NULL )
     {
       /* API changed in 2.6.13 */
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
