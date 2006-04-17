@@ -22,6 +22,7 @@
  *  membase is an 'ioremapped' cookie.
  */
 #include <linux/config.h>
+#include <linux/version.h>
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -327,7 +328,11 @@ struct linmodem_port *linmodem_find_by_line(int line)
 		return NULL;
 }
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+/*static */void linmodem_stop_tx(struct uart_port *port)
+#else
 /*static */void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop)
+#endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
 
@@ -350,7 +355,11 @@ struct linmodem_port *linmodem_find_by_line(int line)
 }
 EXPORT_SYMBOL(linmodem_stop_tx);
 
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+static void linmodem_start_tx(struct uart_port *port)
+#else
 static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
+#endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
 
