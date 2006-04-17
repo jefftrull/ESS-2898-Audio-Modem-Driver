@@ -1,4 +1,6 @@
 /*
+ *  Copyright (C) 2006 Jeffrey Elliot Trull
+ *
  * follows serial/8250.h
  *
  * based on ptserial-2.6.h by Gustavo Barbieri
@@ -8,6 +10,7 @@
 #define __ESSSERIAL_2_6_H
 
 #include <linux/config.h>
+#include <linux/version.h>
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9) )
 #ifndef __iomem
@@ -89,7 +92,5 @@ struct plat_ptserial_port {
 extern int ess_new(struct uart_port *port);
 extern int ess_init(void);
 extern void ess_exit(void);
-
-extern int essserial_hw_check_modem(int vendor);
 
 #endif /* __ESSSERIAL_2_6_H */
