@@ -186,17 +186,17 @@ else
 	ln -sf /dev/ttyS_ESS0 /dev/modem
 endif
 	install -D -m 644 linmodem.ko $(MODULE_DIR)/linmodem.ko
-	install -D -m 644 ess.ko $(MODULE_DIR)/ess.ko
-	install -D -m 644 ess_hw.ko $(MODULE_DIR)/ess_hw.ko
+	install -D -m 644 esscom.ko $(MODULE_DIR)/ess.ko
+	install -D -m 644 esscom_hw.ko $(MODULE_DIR)/ess_hw.ko
 	/sbin/depmod -a
 
 uninstall:
 	/sbin/modprobe -r linmodem ; echo -n
-	/sbin/modprobe -r ess_hw ; echo -n
-	/sbin/modprobe -r ess ; echo -n
+	/sbin/modprobe -r esscom_hw ; echo -n
+	/sbin/modprobe -r esscom ; echo -n
 	$(RM) $(MODULE_DIR)/linmodem.ko
-	$(RM) $(MODULE_DIR)/ess_hw.ko
-	$(RM) $(MODULE_DIR)/ess.ko
+	$(RM) $(MODULE_DIR)/esscom_hw.ko
+	$(RM) $(MODULE_DIR)/esscom.ko
 	/sbin/depmod -a
 ifdef UDEV
 	rm /etc/udev/rules.d/ess.rules
