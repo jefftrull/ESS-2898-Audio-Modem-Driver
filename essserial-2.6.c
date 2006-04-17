@@ -256,12 +256,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		uart_write_wakeup(&p->port);
 
 	if (uart_circ_empty(xmit))
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-		linmodem_stop_tx(&p->port);
-#else
 		linmodem_stop_tx(&p->port, 0);
-#endif
 }
 
 static inline void check_modem_status(struct linmodem_port *p)
