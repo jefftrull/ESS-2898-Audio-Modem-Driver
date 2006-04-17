@@ -65,6 +65,13 @@ typedef struct modify_byte_struct {
 } modify_byte_struct;
 modify_byte_struct *modify_bytes = NULL;
 
+/* symbols to force to global */
+typedef struct globalize_sym_struct {
+    char *symbol_name;
+    struct globalize_sym_struct *next;
+} globalize_sym_struct;
+globalize_sym_struct *globalize_syms = NULL;
+
 static asymbol **isympp = NULL;	/* Input symbols.  */
 
 static void setup_section (bfd *, asection *, void *);
@@ -144,8 +151,9 @@ main (int argc, char **argv) {
     struct change_reloc_struct *new_change;
     struct delete_reloc_struct *new_delete;
     struct modify_byte_struct *new_modify;
+    struct globalize_sym_struct *new_globalize;
 
-    while ((c = getopt (argc, argv, "a:d:c:m:")) != -1) {
+    while ((c = getopt (argc, argv, "a:d:c:m:G:")) != -1) {
 	switch (c) {
 	    case 'a':
 		/* check to see if we have two args: name and loc */
@@ -204,6 +212,13 @@ main (int argc, char **argv) {
 		modify_bytes = new_modify;
 		break;
 
+	    case 'G':
+		new_globalize = (globalize_sym_struct *)malloc(sizeof(globalize_sym_struct));
+		new_globalize->symbol_name = strdup(optarg);
+		new_globalize->next = globalize_syms;
+		globalize_syms = new_globalize;
+		break;
+
 	    default:
 		fprintf(stderr, "unrecognized argument character |%c|\n", c);
 	}
@@ -214,24 +229,6 @@ main (int argc, char **argv) {
 	exit(1);
     }
 
-/*
-    printf("performing the following changes:\n\n");
-    printf("DEL relocs:\n");
-    struct delete_reloc_struct *del_ptr;
-    for (del_ptr = delete_relocs; del_ptr != NULL; del_ptr = del_ptr->next) {
-	printf("%s\n", del_ptr->symbol_name);
-    }
-    printf("\nCHANGE relocs:\n");
-    struct change_reloc_struct *change_ptr;
-    for (change_ptr = change_relocs; change_ptr != NULL; change_ptr = change_ptr->next) {
-	printf("%-30s->%30s\n", change_ptr->old_symbol_name, change_ptr->new_symbol_name);
-    }
-    printf("\nADD relocs:\n");
-    struct add_reloc_struct *add_ptr;
-    for (add_ptr = additional_relocs; add_ptr != NULL; add_ptr = add_ptr->next) {
-	printf("%-30s @%30x\n", add_ptr->symbol_name, add_ptr->loc);
-    }
-*/
     ibfd = bfd_openr(argv[optind], NULL);
     if (ibfd == NULL) {
 	bfd_perror("while opening input object file");
@@ -316,6 +313,9 @@ main (int argc, char **argv) {
 	    delsympp[delsym_idx++] = isympp[i];
 	}
 	else {
+	    if (is_globalize_sym(bfd_asymbol_name(isympp[i]), globalize_syms)) {
+		isympp[i]->flags = BSF_GLOBAL;
+	    }
 	    osympp[osym_idx++] = isympp[i];
 	}
     }
@@ -518,6 +518,17 @@ int is_delete_reloc (const char *name, delete_reloc_struct *del_list_head) {
     delete_reloc_struct *del_ptr;
     for (del_ptr = del_list_head; del_ptr != NULL; del_ptr = del_ptr->next) {
 	if (strcmp(name, del_ptr->symbol_name) == 0) {
+	    return 1;
+	}
+    }
+    return 0;
+}
+
+/* almost identical function for globals.  If only this were C++... */
+int is_globalize_sym (const char *name, globalize_sym_struct *globalize_list_head) {
+    globalize_sym_struct *globalize_ptr;
+    for (globalize_ptr = globalize_list_head; globalize_ptr != NULL; globalize_ptr = globalize_ptr->next) {
+	if (strcmp(name, globalize_ptr->symbol_name) == 0) {
 	    return 1;
 	}
     }
