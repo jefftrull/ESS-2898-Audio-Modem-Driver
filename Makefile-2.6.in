@@ -12,101 +12,6 @@ endif
 
 BIN_DIR = lib/
 
-# symbols from the ESS binary that need to be global so they can be exported to the GPL modules
-GLOBALIZE_BIN_SYM_FLAGS = -G rs_interrupt_single -G esscom_info
-
-# symbols from the ESS binary that must be "weakened" so we get no warnings when we override them
-WEAKEN_BIN_SYM_FLAGS = -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime -W init_module -W cleanup_module
-
-OBJCOPY_FLAGS = $(WEAKEN_BIN_SYM_FLAGS)
-
-# new relocation entries to add to the binary so that our substitute routines will be called
-NEW_RELOC_FLAGS = -a ChkBlkTime,0xc467 \
-		  -a ChkBlkTime,0xc4e9 \
-		  -a ChkBlkTime,0xc9e9 \
-		  -a ChkBlkTime,0xcbd2 \
-		  -a Get_System_Time,0x107cd \
-		  -a Get_System_Time,0x13c85 \
-		  -a Get_System_Time,0x13c91 \
-		  -a Get_System_Time,0x13e49 \
-		  -a Get_System_Time,0x13e51 \
-		  -a Get_System_Time,0x14389 \
-		  -a Get_System_Time,0x14391 \
-		  -a CurrentBlkTime,0xc5fa \
-		  -a CurrentBlkTime,0xc605 \
-		  -a CurrentBlkTime,0xc84c \
-		  -a CurrentBlkTime,0xcc71 \
-		  -a CurrentBlkTime,0xcccd \
-		  -a CurrentBlkTime,0xd040 \
-		  -a systemTime,0xc3f6 \
-		  -a systemTime,0xecd1
-
-
-# existing relocs to change from one symbol to another (probably provided by us)
-# currently the only cases are routines that are called only by unused functions in the binary
-# making them call ess_unused_function will ensure that is true
-CHANGE_RELOC_FLAGS = -c pci_find_device_R0ee75d4c,ess_unused_function \
-	-c __generic_copy_from_user_R116166aa,ess_unused_function \
-	-c pci_write_config_word_Rd9cc3b03,ess_unused_function \
-	-c pci_read_config_word_R8764d15f,ess_unused_function \
-	-c free_pages_R234535e0,ess_unused_function \
-	-c __get_free_pages_R5b3b8f78,ess_unused_function \
-	-c request_irq_R0c60f2e0,ess_unused_function \
-	-c free_irq_Rf20dabd8,ess_unused_function \
-	-c __verify_write_R203afbeb,ess_unused_function \
-	-c sprintf_R3c2c5af5,sprintf \
-	-c printk_R1b7d4074,ess_unused_function \
-	-c pcibios_present_R520a75b9,ess_unused_function \
-	-c panic_R01075bf0,ess_unused_function \
-	-c tty_hung_up_p_Rdc891c9e,ess_unused_function \
-	-c tty_unregister_driver_Ra61e8501,ess_unused_function \
-	-c release_region_R43bde9b1,ess_unused_function \
-	-c tty_register_driver_R9a666159,ess_unused_function \
-	-c tty_get_baud_rate_R8e49bd36,ess_unused_function \
-	-c request_region_R6d32b2d7,ess_unused_function \
-	-c check_region_R522f4d72,ess_unused_function \
-	-c tty_flip_buffer_push_Rabeed08a,ess_unused_function \
-	-c kfree_s_R06d9dd5d,ess_unused_function \
-	-c kmalloc_R93d4cfe6,ess_unused_function \
-	-c interruptible_sleep_on_Rc0f2a9fa,ess_unused_function \
-	-c __wake_up_Rb2c45411,ess_unused_function
-
-# relocs to remove, as they are undefined symbols in routines that won't be called
-# these are generally data symbols, as unused functions get pointed to ess_unused_function
-DELETE_RELOC_FLAGS = -d bh_mask_count_Re7f2f851 \
-	-d timer_active_R20db258c \
-	-d cap_bset_R59ab4080 \
-	-d tty_std_termios_R89ac5254 \
-	-d boot_cpu_data_R4d12d1d7 \
-	-d timer_table_Re6d34e9e \
-	-d bh_base_R7336c1f0 \
-	-d bh_active_Rfff9d0a3 \
-	-d bh_mask_Rbc9e6593 \
-	-d jiffies_R0da02d67
-
-# the driver appears to have the DCD (bit 7) and RI (bit 6) bits of the MSR confused.
-# fix it, in case this is causing problems
-BUGFIX_FLAGS = -m 0x1b22=0x80 \
-	       -m 0x1b2a=0x40 \
-	       -m 0x1b9a=0xbf \
-	       -m 0x1e81=0x80 \
-	       -m 0x1e8f=0x7f \
-	       -m 0x2b0c=0x80 \
-	       -m 0x2b10=0x80 \
-	       -m 0x2b3c=0x7f \
-	       -m 0x2b6b=0x80 \
-	       -m 0x2b7c=0x7f \
-	       -m 0x461a=0x80 \
-	       -m 0x4628=0x7f \
-	       -m 0xb6a7=0x7f \
-	       -m 0xb6b8=0x80 \
-	       -m 0xbfa2=0x80 \
-	       -m 0xbfb0=0x7f \
-	       -m 0x2578e=0x80
-
-
-RELOC_FLAGS = $(NEW_RELOC_FLAGS) $(CHANGE_RELOC_FLAGS) $(DELETE_RELOC_FLAGS) $(BUGFIX_FLAGS) $(GLOBALIZE_BIN_SYM_FLAGS)
-
 obj-m += linmodem.o
 obj-m += esscom.o
 obj-m += esscom_hw.o
@@ -148,19 +53,6 @@ clean:
 # how to take a 111.zip (unmodified 2.2 distribution) and create a linkable object file
 # two step process: first, run objcopy, then run a special program to manipulate relocs
 # and make changes to the binary
-
-$(BIN_DIR)esscom_bin.o : 111.zip
-		   unzip 111.zip esscom.o -d $(BIN_DIR)
-		   mv $(BIN_DIR)esscom.o $(BIN_DIR)esscom_bin.o
-		   touch $(BIN_DIR)esscom_bin.o
-
-$(BIN_DIR)esscom_bin.2.6.o: $(BIN_DIR)esscom_bin.o fixup_relocs
-	objcopy $(OBJCOPY_FLAGS) \
-	$(BIN_DIR)esscom_bin.o $(BIN_DIR)esscom_bin.cleaned.o
-	./fixup_relocs $(RELOC_FLAGS) $(BIN_DIR)esscom_bin.cleaned.o $(BIN_DIR)esscom_bin.2.6.o
-
-fixup_relocs: fixup_relocs.c
-	cc -o fixup_relocs fixup_relocs.c -lbfd -liberty
 
 binary.a: $(BIN_DIR)esscom_bin.2.6.o
 	@echo "  LD	binary.a"
