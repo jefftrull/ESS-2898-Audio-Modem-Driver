@@ -16,7 +16,7 @@ BIN_DIR = lib/
 GLOBALIZE_BIN_SYM_FLAGS = --globalize-symbol=rs_interrupt_single --globalize-symbol=esscom_info
 
 # symbols from the ESS binary that must be "weakened" so we get no warnings when we override them
-WEAKEN_BIN_SYM_FLAGS = -W powerup_get_PTT_country -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime
+WEAKEN_BIN_SYM_FLAGS = -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime -W init_module -W cleanup_module
 
 OBJCOPY_FLAGS = $(GLOBALIZE_BIN_SYM_FLAGS) $(WEAKEN_BIN_SYM_FLAGS)
 
@@ -46,30 +46,30 @@ NEW_RELOC_FLAGS = -a ChkBlkTime,0xc467 \
 # currently the only cases are routines that are called only by unused functions in the binary
 # making them call ess_unused_function will ensure that is true
 CHANGE_RELOC_FLAGS = -c pci_find_device_R0ee75d4c,ess_unused_function \
-	-c ess22tty_flip_buffer_push,ess_unused_function \
-	-c ess22release_region,ess_unused_function \
 	-c __generic_copy_from_user_R116166aa,ess_unused_function \
 	-c pci_write_config_word_Rd9cc3b03,ess_unused_function \
 	-c pci_read_config_word_R8764d15f,ess_unused_function \
 	-c free_pages_R234535e0,ess_unused_function \
-	-c ess_tty_register_driver,ess_unused_function \
 	-c __get_free_pages_R5b3b8f78,ess_unused_function \
-	-c ess22check_region,ess_unused_function \
 	-c request_irq_R0c60f2e0,ess_unused_function \
-	-c ess22__wake_up,ess_unused_function \
 	-c free_irq_Rf20dabd8,ess_unused_function \
 	-c __verify_write_R203afbeb,ess_unused_function \
-	-c ess22interruptible_sleep_on,ess_unused_function \
-	-c kfree_s,ess_unused_function \
-	-c ess_tty_unregister_driver,ess_unused_function \
 	-c sprintf_R3c2c5af5,sprintf \
 	-c printk_R1b7d4074,ess_unused_function \
-	-c ess22request_region,ess_unused_function \
-	-c ess22tty_get_baud_rate,ess_unused_function \
-	-c ess22kmalloc,ess_unused_function \
 	-c pcibios_present_R520a75b9,ess_unused_function \
-	-c tty_hung_up_p_R4afe0fd5,ess_unused_function \
-	-c panic_R01075bf0,ess_unused_function
+	-c panic_R01075bf0,ess_unused_function \
+	-c tty_hung_up_p_Rdc891c9e,ess_unused_function \
+	-c tty_unregister_driver_Ra61e8501,ess_unused_function \
+	-c release_region_R43bde9b1,ess_unused_function \
+	-c tty_register_driver_R9a666159,ess_unused_function \
+	-c tty_get_baud_rate_R8e49bd36,ess_unused_function \
+	-c request_region_R6d32b2d7,ess_unused_function \
+	-c check_region_R522f4d72,ess_unused_function \
+	-c tty_flip_buffer_push_Rabeed08a,ess_unused_function \
+	-c kfree_s_R06d9dd5d,ess_unused_function \
+	-c kmalloc_R93d4cfe6,ess_unused_function \
+	-c interruptible_sleep_on_Rc0f2a9fa,ess_unused_function \
+	-c __wake_up_Rb2c45411,ess_unused_function
 
 # relocs to remove, as they are undefined symbols in routines that won't be called
 # these are generally data symbols, as unused functions get pointed to ess_unused_function
@@ -114,7 +114,7 @@ linmodem-objs := linmodem-2.6.o
 esscom-objs := essserial-2.6.o essserial_pci.o
 esscom_hw-objs := binary.a essserial_hw.o
 
-BIN_OBJS = $(BIN_DIR)esscom_emu-fix.2.6.o
+BIN_OBJS = $(BIN_DIR)esscom_bin.2.6.o
 
 EXTRA_LDFLAGS := -z muldefs
 
@@ -138,22 +138,31 @@ clean:
 	rm -f .essserial_pci.o.cmd
 	rm -rf .tmp_versions
 	rm -f binary.a
-	rm -f $(BIN_DIR)esscom_emu-fix.2.6.o $(BIN_DIR)esscom_emu-fix.cleaned.o
+	rm -f $(BIN_DIR)esscom_bin.2.6.o $(BIN_DIR)esscom_bin.cleaned.o $(BIN_DIR)esscom_bin.o
 	rm -f fixup_relocs
 
 .s.o:
 	@echo "  CC	$@"
 	@gcc -c $< -o $@
 
-$(BIN_DIR)esscom_emu-fix.2.6.o: $(BIN_DIR)esscom_emu-fix.o fixup_relocs
+# how to take a 111.zip (unmodified 2.2 distribution) and create a linkable object file
+# two step process: first, run objcopy, then run a special program to manipulate relocs
+# and make changes to the binary
+
+$(BIN_DIR)esscom_bin.o : 111.zip
+		   unzip 111.zip esscom.o -d $(BIN_DIR)
+		   mv $(BIN_DIR)esscom.o $(BIN_DIR)esscom_bin.o
+		   touch $(BIN_DIR)esscom_bin.o
+
+$(BIN_DIR)esscom_bin.2.6.o: $(BIN_DIR)esscom_bin.o fixup_relocs
 	objcopy $(OBJCOPY_FLAGS) \
-	$(BIN_DIR)esscom_emu-fix.o $(BIN_DIR)esscom_emu-fix.cleaned.o
-	./fixup_relocs $(RELOC_FLAGS) $(BIN_DIR)esscom_emu-fix.cleaned.o $(BIN_DIR)esscom_emu-fix.2.6.o
+	$(BIN_DIR)esscom_bin.o $(BIN_DIR)esscom_bin.cleaned.o
+	./fixup_relocs $(RELOC_FLAGS) $(BIN_DIR)esscom_bin.cleaned.o $(BIN_DIR)esscom_bin.2.6.o
 
 fixup_relocs: fixup_relocs.c
 	cc -o fixup_relocs fixup_relocs.c -lbfd -liberty
 
-binary.a: $(BIN_DIR)esscom_emu-fix.2.6.o
+binary.a: $(BIN_DIR)esscom_bin.2.6.o
 	@echo "  LD	binary.a"
 	@ld -d -i $(BIN_OBJS) -o binary.a
 
