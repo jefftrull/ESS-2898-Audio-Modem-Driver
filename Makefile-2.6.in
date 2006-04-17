@@ -191,9 +191,9 @@ endif
 	/sbin/depmod -a
 
 uninstall:
-	/sbin/modprobe -r linmodem ; echo -n
-	/sbin/modprobe -r esscom_hw ; echo -n
 	/sbin/modprobe -r esscom ; echo -n
+	/sbin/modprobe -r esscom_hw ; echo -n
+	/sbin/modprobe -r linmodem ; echo -n
 	$(RM) $(MODULE_DIR)/linmodem.ko
 	$(RM) $(MODULE_DIR)/esscom_hw.ko
 	$(RM) $(MODULE_DIR)/esscom.ko
