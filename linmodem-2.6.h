@@ -14,6 +14,8 @@
 #ifndef _LINUX_LINMODEM_H
 #define _LINUX_LINMODEM_H
 
+#include <linux/version.h>
+
 /* serial_core.h has no include protection, so fix */
 #ifndef UPF_FOURPORT
 # include <linux/serial_core.h>
@@ -86,7 +88,10 @@ int linmodem_hw_new(struct uart_port *port);
 /* XXX: REMOVE ME!!! */
 int serial_link_irq_chain(struct linmodem_port *p);
 void serial_unlink_irq_chain(struct linmodem_port *p);
+#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
+void linmodem_stop_tx(struct uart_port *port);
+#else
 void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop);
-
+#endif
 
 #endif /* _LINUX_LINMODEM_H */
