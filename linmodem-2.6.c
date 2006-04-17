@@ -165,16 +165,6 @@ static /* inline */ void serial_out(struct linmodem_port *p, int offset,
 
 
 /*
- * For the 16C950
- */
-static void serial_icr_write(struct linmodem_port *p, int offset, int value)
-{
-	dbg();
-	serial_out(p, UART_SCR, offset);
-	serial_out(p, UART_ICR, value);
-}
-
-/*
  * FIFO support.
  */
 static inline void linmodem_clear_fifos(struct linmodem_port *p)
@@ -342,15 +332,6 @@ struct linmodem_port *linmodem_find_by_line(int line)
 		serial_out(p, UART_IER, p->ier);
 	}
 
-	/*
-	 * We only do this from uart_stop - if we run out of
-	 * characters to send, we don't want to prevent the
-	 * FIFO from emptying.
-	 */
-	if (p->port.type == PORT_16C950 && tty_stop) {
-		p->acr |= UART_ACR_TXDIS;
-		serial_icr_write(p, UART_ACR, p->acr);
-	}
 }
 EXPORT_SYMBOL(linmodem_stop_tx);
 
@@ -367,13 +348,6 @@ static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
 	if (!(p->ier & UART_IER_THRI)) {
 		p->ier |= UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
-	}
-	/*
-	 * We only do this from uart_start
-	 */
-	if (tty_start && p->port.type == PORT_16C950) {
-		p->acr &= ~UART_ACR_TXDIS;
-		serial_icr_write(p, UART_ACR, p->acr);
 	}
 }
 
@@ -493,7 +467,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&p->port)) {
-		linmodem_stop_tx(&p->port, 0);
+	        stop_tx(&p->port);
 		return;
 	}
 
@@ -510,7 +484,8 @@ static inline void transmit_chars(struct linmodem_port *p)
 		uart_write_wakeup(&p->port);
 
 	if (uart_circ_empty(xmit))
-		linmodem_stop_tx(&p->port, 0);
+	        stop_tx(&p->port);
+
 }
 
 static inline void check_modem_status(struct linmodem_port *p)

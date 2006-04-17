@@ -90,8 +90,10 @@ int serial_link_irq_chain(struct linmodem_port *p);
 void serial_unlink_irq_chain(struct linmodem_port *p);
 #if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
 void linmodem_stop_tx(struct uart_port *port);
+#define stop_tx(port) (linmodem_stop_tx(port))
 #else
 void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop);
+#define stop_tx(port) (linmodem_stop_tx(port), 0)
 #endif
 
 #endif /* _LINUX_LINMODEM_H */
