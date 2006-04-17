@@ -3,7 +3,7 @@
 # derived from configure script for pctel based modems
 # history entries below date from pctel
 # (w) by J. Stifter
-# $Id: configure,v 1.1 2006-04-13 16:41:51 jet Exp $
+# $Id: configure,v 1.2 2006-04-17 19:04:20 jet Exp $
 #
 # Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
 # Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
@@ -314,7 +314,7 @@ int main() {
    return 0;
 }
 EOF
-gcc -o t t.c
+gcc -o t -I${kernel_inc} t.c
 uts_release=`./t`
 rm ./t ./t.c
 if [ -z ${uts_release} ]
