@@ -231,7 +231,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&p->port)) {
 
-		linmodem_stop_tx(&p->port, 0);
+	        stop_tx(&p->port);
 		return;
 	}
 
@@ -256,7 +256,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		uart_write_wakeup(&p->port);
 
 	if (uart_circ_empty(xmit))
-		linmodem_stop_tx(&p->port, 0);
+	        stop_tx(&p->port);
 }
 
 static inline void check_modem_status(struct linmodem_port *p)
