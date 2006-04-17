@@ -350,7 +350,7 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 	dbg();
 
     /* Sanity check to ensure the correct binary part of the driver */
-    if( !essserial_hw_check_modem( dev->vendor ) ) {
+    if( !esscom_hw_check_modem( dev->vendor ) ) {
         err("pciserial_init_one: invalid ess_hw binary module");
 		return -EINVAL;
     }
