@@ -93,7 +93,7 @@ void linmodem_stop_tx(struct uart_port *port);
 #define stop_tx(port) (linmodem_stop_tx(port))
 #else
 void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop);
-#define stop_tx(port) (linmodem_stop_tx(port), 0)
+#define stop_tx(port) (linmodem_stop_tx(port, 0))
 #endif
 
 #endif /* _LINUX_LINMODEM_H */
