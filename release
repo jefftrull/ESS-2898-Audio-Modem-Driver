@@ -18,4 +18,6 @@ date > ${tmpdirname}/${relname}/manifest
 cvs stat >> ${tmpdirname}/${relname}/manifest
 # tar it up for release
 tar -C ${tmpdirname} -cvzf ./${relname}.tar.gz ${relname}
+# clean up directory
+rm -rf ${tmpdirname}
 
