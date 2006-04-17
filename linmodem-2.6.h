@@ -1,3 +1,16 @@
+/*
+ *  Copyright (C) 2005 Glauber de Oliveira Costa,
+ *                     Gustavo Sverzut Barbieri,
+ *                     Murillo Fernandes Bernardes,
+ *                     Robert H. Thornburrow
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
+ */
+
 #ifndef _LINUX_LINMODEM_H
 #define _LINUX_LINMODEM_H
 
@@ -6,7 +19,6 @@
 # include <linux/serial_core.h>
 #endif
 #include <linux/serial.h>
-#include <linux/version.h>
 
 #define UART_CAP_FIFO	(1 << 8)	/* UART has FIFO */
 #define UART_CAP_EFR	(1 << 9)	/* UART has EFR */
@@ -74,12 +86,7 @@ int linmodem_hw_new(struct uart_port *port);
 /* XXX: REMOVE ME!!! */
 int serial_link_irq_chain(struct linmodem_port *p);
 void serial_unlink_irq_chain(struct linmodem_port *p);
-
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-void linmodem_stop_tx(struct uart_port *port);
-#else
 void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop);
-#endif
+
 
 #endif /* _LINUX_LINMODEM_H */

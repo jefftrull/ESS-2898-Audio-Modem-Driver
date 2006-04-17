@@ -22,7 +22,7 @@
  *  membase is an 'ioremapped' cookie.
  */
 #include <linux/config.h>
-#include <linux/version.h>
+
 #include <linux/module.h>
 #include <linux/ioport.h>
 #include <linux/init.h>
@@ -327,12 +327,7 @@ struct linmodem_port *linmodem_find_by_line(int line)
 		return NULL;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-/*static*/ void linmodem_stop_tx(struct uart_port *port)
-#else
-/*static*/ void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop)
-#endif
+/*static */void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop)
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
 
@@ -348,25 +343,14 @@ struct linmodem_port *linmodem_find_by_line(int line)
 	 * characters to send, we don't want to prevent the
 	 * FIFO from emptying.
 	 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
-/* following changes in 8250.c here. note use of tty_stop went away
-in 2.6.13 but removal from api wasn't until 2.6.14 */
-	if (p->port.type == PORT_16C950) {
-#else
 	if (p->port.type == PORT_16C950 && tty_stop) {
-#endif
 		p->acr |= UART_ACR_TXDIS;
 		serial_icr_write(p, UART_ACR, p->acr);
 	}
 }
 EXPORT_SYMBOL(linmodem_stop_tx);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-static void linmodem_start_tx(struct uart_port *port)
-#else
 static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
-#endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
 
@@ -379,14 +363,7 @@ static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
 	/*
 	 * We only do this from uart_start
 	 */
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,13)
-/* following changes in 8250.c here. note use of tty_start went away
-in 2.6.13 but removal from api wasn't until 2.6.14 */
-	if (p->port.type == PORT_16C950 && p->acr & UART_ACR_TXDIS) {
-#else
 	if (tty_start && p->port.type == PORT_16C950) {
-
-#endif
 		p->acr &= ~UART_ACR_TXDIS;
 		serial_icr_write(p, UART_ACR, p->acr);
 	}
@@ -508,12 +485,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&p->port)) {
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-		linmodem_stop_tx(&p->port);
-#else
 		linmodem_stop_tx(&p->port, 0);
-#endif
 		return;
 	}
 
@@ -530,12 +502,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		uart_write_wakeup(&p->port);
 
 	if (uart_circ_empty(xmit))
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/* uart_ops API change */
-		linmodem_stop_tx(&p->port);
-#else
 		linmodem_stop_tx(&p->port, 0);
-#endif
 }
 
 static inline void check_modem_status(struct linmodem_port *p)
@@ -912,9 +879,8 @@ linmodem_set_termios(struct uart_port *port, struct termios *termios,
 	 * LCR DLAB must be set to enable 64-byte FIFO mode. If the FCR
 	 * is written without DLAB set, this mode will be disabled.
 	 */
-	if (p->port.type == PORT_16750) {
-	    serial_outp(p, UART_FCR, fcr);
-	}
+	if (p->port.type == PORT_16750)
+		serial_outp(p, UART_FCR, fcr);
 
 	serial_outp(p, UART_LCR, cval);		        /* reset DLAB */
 	p->lcr = cval;					/* Save LCR */
