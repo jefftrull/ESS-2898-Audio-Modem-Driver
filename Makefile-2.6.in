@@ -13,12 +13,12 @@ endif
 BIN_DIR = lib/
 
 # symbols from the ESS binary that need to be global so they can be exported to the GPL modules
-GLOBALIZE_BIN_SYM_FLAGS = --globalize-symbol=rs_interrupt_single --globalize-symbol=esscom_info
+GLOBALIZE_BIN_SYM_FLAGS = -G rs_interrupt_single -G esscom_info
 
 # symbols from the ESS binary that must be "weakened" so we get no warnings when we override them
 WEAKEN_BIN_SYM_FLAGS = -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime -W init_module -W cleanup_module
 
-OBJCOPY_FLAGS = $(GLOBALIZE_BIN_SYM_FLAGS) $(WEAKEN_BIN_SYM_FLAGS)
+OBJCOPY_FLAGS = $(WEAKEN_BIN_SYM_FLAGS)
 
 # new relocation entries to add to the binary so that our substitute routines will be called
 NEW_RELOC_FLAGS = -a ChkBlkTime,0xc467 \
@@ -105,7 +105,7 @@ BUGFIX_FLAGS = -m 0x1b22=0x80 \
 	       -m 0x2578e=0x80
 
 
-RELOC_FLAGS = $(NEW_RELOC_FLAGS) $(CHANGE_RELOC_FLAGS) $(DELETE_RELOC_FLAGS) $(BUGFIX_FLAGS)
+RELOC_FLAGS = $(NEW_RELOC_FLAGS) $(CHANGE_RELOC_FLAGS) $(DELETE_RELOC_FLAGS) $(BUGFIX_FLAGS) $(GLOBALIZE_BIN_SYM_FLAGS)
 
 obj-m += linmodem.o
 obj-m += esscom.o
