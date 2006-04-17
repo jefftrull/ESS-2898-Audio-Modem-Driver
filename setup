@@ -1,0 +1,49 @@
+#!/bin/bash
+# install script for pctel based modems
+# (w) by J. Stifter, 2002-12-15
+# minor modifications for ESS by Jeffrey E. Trull, 2006
+
+# $Id: setup,v 1.1 2006-04-17 06:24:58 jet Exp $
+
+./configure
+make >make.log 2>&1
+if [ $? != 0 ]
+then
+   echo "** compilation error"
+   echo "please read the FAQ about reporting compilation problems"
+   echo "and report this problem.  A transcript of the build process"
+   echo "has been saved in src/make.log.  When reporting problems to"
+   echo "the development team, please send us this file."
+   exit 1
+else
+   echo
+   echo "compilation done"
+fi
+make install >>make.log 2>&1
+if [ $? != 0 ]
+then
+   echo "** installation error"
+   echo "please read the FAQ about reporting installation problems"
+   echo "and report this problem.  A transcript of the install process"
+   echo "has been saved in src/make.log.  When reporting problems to"
+   echo "the development team, please send us this file."
+   exit 1
+else
+   echo
+   echo "installation done"
+fi
+make insmod >>make.log 2>&1
+if [ $? != 0 ]
+then
+   echo "** error activating modem driver via insmod"
+   echo "please read the FAQ about reporting problems and report"
+   echo "this problem.  A transcript of the attempted activation"
+   echo "has been saved in src/make.log.  When reporting problems to"
+   echo "the development team, please send us this file."
+   exit 1
+else
+   echo
+   echo "modem activated"
+fi
+cd ..
+exit 0
