@@ -186,8 +186,8 @@ else
 	ln -sf /dev/ttyS_ESS0 /dev/modem
 endif
 	install -D -m 644 linmodem.ko $(MODULE_DIR)/linmodem.ko
-	install -D -m 644 esscom.ko $(MODULE_DIR)/ess.ko
-	install -D -m 644 esscom_hw.ko $(MODULE_DIR)/ess_hw.ko
+	install -D -m 644 esscom.ko $(MODULE_DIR)/esscom.ko
+	install -D -m 644 esscom_hw.ko $(MODULE_DIR)/esscom_hw.ko
 	/sbin/depmod -a
 
 uninstall:
