@@ -1,4 +1,6 @@
 /*
+ *  Copyright (C) 2006 Jeffrey Elliot Trull
+ *
  *      This file is to be linked with the rest of the libraries in
  *      the distribution package.  It links to proprietary code and
  *      is therefore NOT covered by the GPL.
@@ -6,6 +8,9 @@
  *      This file contains mostly stuff that links into or overrides
  *      the proprietary binary esscom.o
  *
+ *      This work would have been a lot harder if I hadn't been able
+ *      to follow in the footsteps of Shachar Raindel, who managed to
+ *      create a working 2.4 version in a similar manner.
  */
  
 #include <linux/config.h>
@@ -50,14 +55,14 @@ static char* ess_options __initdata =
  * macro has been defined during compilation giving some idea whether we are
  * linked against the correct binary code.
  */
-int essserial_hw_check_modem( int vendor )
+int esscom_hw_check_modem( int vendor )
 {
     int ret = 0;
     ret = (vendor == PCI_VENDOR_ID_ESS);
     return ret;
 }
 
-EXPORT_SYMBOL(essserial_hw_check_modem);
+EXPORT_SYMBOL(esscom_hw_check_modem);
 
 unsigned long Get_System_Time(void);
 
@@ -102,7 +107,6 @@ void esscom_initialize(void) {
     myPort = kmalloc(sizeof(*myPort), GFP_KERNEL);
     memset(myPort, 0, sizeof(*myPort));
 
-    /* BOZO check return value */
     myPort->dummy1 = NULL;
     myPort->dummy2 = 0x1000;
     myPort->dummy3 = 0;
@@ -114,18 +118,10 @@ void esscom_initialize(void) {
     myPort->first_untransmitted_ptr = 0;
     myPort->mystery_ptr = 0;
 
-    /* BOZO we alloc stuff here and never use it, seemingly! */
-    myPort->dummy1 = kmalloc(0x1000, GFP_KERNEL);
-
-    if (myPort->dummy1 == NULL) {
-	/* the world's dumbest error message, for multiple reasons */
-	printk("ESSCOM: @@@=> Allocate Memory Error\n");
-    }
-
     ReadID("ESS0425");       /* note: the ReadID function doesn't use any of its parameters! */
                              /* but this is how the binary calls it... */
 
-    info("ESS info:  Card is %x, RealID is %x, CardID is %x, HSP_Flag is %lx, No_LCS is %x, FunctionID is %x\n",
+    info("ESS info:  Card is %x, RealID is %x, CardID is %x, HSP_Flag is %lx, No_LCS is %x, FunctionID is %x",
 	 Card, RealID, CardID, HSP_Flag, No_LCS, FunctionID);
 
     init_at_var();
@@ -243,13 +239,10 @@ unsigned long systemTime(void) {
 unsigned long  __attribute__((regparm(0))) ChkBlkTime(unsigned long prevtime) {
     unsigned long ret;
 
-    /* multiplying by 0x51eb851f and taking the upper 32 is the same as dividing by 100 */
-    /* BOZO this seems wrong (prevtime is a scaled value!) */
+    /* BOZO this seems wrong (prevtime is a scaled value!) yet it matches the binary */
     ret = (JIFFIES_OLDSCHOOL - prevtime) / 100;
 
     return ret;
-
-
 }    
 
 /*
@@ -451,10 +444,16 @@ static void put_uart_dlm(unsigned char c) {
 EXPORT_SYMBOL(get_uart_dlm);
 EXPORT_SYMBOL(put_uart_dlm);
 
-void esscom_hw_setup (u16 iobase, u16 irq) {
+void esscom_hw_setup (u16 iobase, u16 irq, int country_code) {
     IDMA_ADD = gwBaseEDSP = gwBaseIO = iobase;
     IDMA_DATA = iobase + 4;
     ESSIRQ = irq;
+
+    /* set country from the module parameter */
+    CountryCode = country_code;
+
+    /* also permit the country to be overridden via at commands */
+    PTTFuncOption[0] = 0xff;
 
     info("setting up iobase=%x, irq=%x\n", iobase, irq);
 
