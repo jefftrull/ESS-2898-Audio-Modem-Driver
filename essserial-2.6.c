@@ -1,10 +1,25 @@
 /*
  * Serial driver module for ESS modems.
+ *
+ *  Copyright (C) 2005 Glauber de Oliveira Costa,
+ *                     Gustavo Sverzut Barbieri,
+ *                     Murillo Fernandes Bernardes,
+ *                     Robert H. Thornburrow
+ *  Copyright (C) 2006 Jeffrey E. Trull
+ *
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
+ *
  * based on ptserial-2.6.c by Gustavo Barbieri, which was in turn based on work
- * by Robert Thornburrow and others for 2.4 and prior kernels.
- * Also based on a "hacked" version of the ESS 2.2 driver by Shachar Raindel
+ * by Robert Thornburrow and others for 2.4 and prior kernels,
  * and finally the 2.6 kernel's serial driver code
+ *
+ * Valuable knowledge came from studying a "hacked" version of the ESS 2.2 driver
+ * for kernel 2.4 by Shachar Raindel
  */
+
 #include <linux/config.h>
 
 #include <linux/module.h>
@@ -56,7 +71,7 @@ extern int debug;
 	printk(KERN_WARNING "%s(%d): " format "\n", MY_NAME, __LINE__, ## arg)
 
 
-static int country_code = 1;
+static int country_code = 0;
 MODULE_PARM(country_code, "i");
 MODULE_PARM_DESC(country_code, "Select a country code for the ESS modem.");
 
@@ -381,24 +396,22 @@ unsigned long last_report = 0;
 
 void esscom_do_timer_tick (unsigned long data) {
 
-        struct linmodem_port *p;
-	static union i387_union i387;
-	static unsigned long cr0;
+    struct linmodem_port *p;
+    static union i387_union i387;
+    static unsigned long cr0;
 
-	p = (struct linmodem_port *) data;
+    p = (struct linmodem_port *) data;
 
-	/* save fpu state */
-	__asm__ __volatile__("mov %%cr0,%0 ; clts" : "=r" (cr0));
-	__asm__ __volatile__("fnsave %0\n\t"
-			     "fwait"
-			     : "=m" (i387));
+    /* save fpu state */
+    __asm__ __volatile__("mov %%cr0,%0 ; clts" : "=r" (cr0));
+    __asm__ __volatile__("fnsave %0\n\t"
+			 "fwait"
+			 : "=m" (i387));
 
     esscom_hw_timer_tick(p);
 
-	__asm__ __volatile__("frstor %0": :"m" (i387));
-	__asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));
-
-
+    __asm__ __volatile__("frstor %0": :"m" (i387));
+    __asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));
 
     essserial_handle_port(p, NULL);
 
@@ -419,9 +432,7 @@ static int ess_startup(struct linmodem_port *p)
 
 	info("ESS initialization. Country code is %d.\n", country_code);
 
-	esscom_hw_setup(p->port.iobase, p->port.irq);
-
-	/* BOZO how do I set the country code for ESS? */
+	esscom_hw_setup(p->port.iobase, p->port.irq, country_code);
 
 	/*
 	 * Clear the FIFO buffers and disable them.
