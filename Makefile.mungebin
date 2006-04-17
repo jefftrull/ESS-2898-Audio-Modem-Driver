@@ -70,7 +70,9 @@ DELETE_RELOC_FLAGS = -d bh_mask_count_Re7f2f851 \
 	-d bh_base_R7336c1f0 \
 	-d bh_active_Rfff9d0a3 \
 	-d bh_mask_Rbc9e6593 \
-	-d jiffies_R0da02d67
+	-d jiffies_R0da02d67 \
+	-d __get_user_4 \
+	-d __put_user_4
 
 # the driver appears to have the DCD (bit 7) and RI (bit 6) bits of the MSR confused.
 # fix it, in case this is causing problems
