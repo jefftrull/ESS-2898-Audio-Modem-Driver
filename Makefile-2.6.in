@@ -43,8 +43,6 @@ clean:
 	rm -f .essserial_pci.o.cmd
 	rm -rf .tmp_versions
 	rm -f binary.a
-	rm -f $(BIN_DIR)esscom_bin.2.6.o $(BIN_DIR)esscom_bin.cleaned.o $(BIN_DIR)esscom_bin.o
-	rm -f fixup_relocs
 
 .s.o:
 	@echo "  CC	$@"

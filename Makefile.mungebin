@@ -108,3 +108,8 @@ $(BIN_DIR)esscom_bin.o : 111.zip
 fixup_relocs: fixup_relocs.c
 	cc -o fixup_relocs fixup_relocs.c -lbfd -liberty
 
+clean:
+	rm -f .built-in.o.cmd built-in.o
+	rm -rf .tmp_versions
+	rm -f $(BIN_DIR)esscom_bin.2.6.o $(BIN_DIR)esscom_bin.cleaned.o $(BIN_DIR)esscom_bin.o
+	rm -f fixup_relocs
