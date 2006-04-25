@@ -21,6 +21,7 @@
  */
 
 #include <linux/config.h>
+#include <linux/version.h>
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -146,6 +147,8 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 	dbg();
 
 	do {
+	    /* the next bit simply disappears in the 2.6.16 version of 8250.c */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16) )
 		/* The following is not allowed by the tty layer and
 		   unsafe. It should be fixed ASAP */
 		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
@@ -154,6 +157,7 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 			/* If this failed then we will throw away the
 			   bytes but must do so to clear interrupts */
 		}
+#endif
 		ch = ess_serial_inp(p, UART_RX);
 
 		flag = TTY_NORMAL;
@@ -197,6 +201,8 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 		}
 		if (uart_handle_sysrq_char(&p->port, ch, regs))
 			goto ignore_char;
+		/* this next part changes sometime before 2.6.13 in 8250.c */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
 		if ((lsr & p->port.ignore_status_mask) == 0) {
 			tty_insert_flip_char(tty, ch, flag);
 		}
@@ -209,6 +215,10 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 			 */
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
+#else
+		uart_insert_char(&p->port, lsr, UART_LSR_OE, ch, flag);
+#endif
+
 	ignore_char:
 		lsr = ess_serial_inp(p, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));

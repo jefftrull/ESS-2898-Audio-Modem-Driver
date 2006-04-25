@@ -22,6 +22,7 @@
  *  membase is an 'ioremapped' cookie.
  */
 #include <linux/config.h>
+#include <linux/version.h>
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -383,6 +384,7 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 	dbg();
 
 	do {
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16) )
 		/* The following is not allowed by the tty layer and
 		   unsafe. It should be fixed ASAP */
 		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
@@ -391,6 +393,7 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 			/* If this failed then we will throw away the
 			   bytes but must do so to clear interrupts */
 		}
+#endif
 		ch = serial_inp(p, UART_RX);
 
 		flag = TTY_NORMAL;
@@ -434,6 +437,8 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 		}
 		if (uart_handle_sysrq_char(&p->port, ch, regs))
 			goto ignore_char;
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
 		if ((lsr & p->port.ignore_status_mask) == 0) {
 			tty_insert_flip_char(tty, ch, flag);
 		}
@@ -446,6 +451,9 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 			 */
 			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
 		}
+#else
+		uart_insert_char(&p->port, lsr, UART_LSR_OE, ch, flag);
+#endif
 	ignore_char:
 		lsr = serial_inp(p, UART_LSR);
 	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
@@ -985,11 +993,13 @@ static void linmodem_config_port(struct uart_port *port, int flags)
 
 	dbg();
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16) )
 	/*
 	 * Don't probe for MCA ports on non-MCA machines.
 	 */
 	if (p->port.flags & UPF_BOOT_ONLYMCA && !MCA_bus)
 		return;
+#endif
 
 	/*
 	 * Find the region that we can probe for.  This in turn
