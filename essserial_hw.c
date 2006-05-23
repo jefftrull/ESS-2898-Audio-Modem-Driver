@@ -146,6 +146,11 @@ void esscom_initialize(void) {
 void esscom_hw_shutdown (void) {
     /* I think this is the right thing to do to shut down the hw and prevent interrupts */
     stop_modem(0);
+
+    /* free anything we allocated in esscom_initialize */
+    kfree(myPort->xmit_buf);
+    kfree(myPort);
+
 }
 
 EXPORT_SYMBOL(esscom_hw_shutdown);
