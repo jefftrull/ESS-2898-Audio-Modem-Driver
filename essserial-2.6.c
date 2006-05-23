@@ -45,7 +45,7 @@
 
 
 #define DRIVER_VERSION "v0.2"
-#define DRIVER_AUTHOR  "Jeff Trull <jetrull@earthlink.net>"
+#define DRIVER_AUTHOR  "Jeff Trull <linmodemstudent@gmail.com>"
 #define DRIVER_DESC    "ESS Tech ES2898 modem driver"
 #define DRIVER_LICENSE "GPL"
 
