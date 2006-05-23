@@ -56,7 +56,7 @@ MODULE_LICENSE(DRIVER_LICENSE);
 
 #ifdef LINMODEM_DEBUG
 static int debug = 1;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
 #define dbg(fmt, arg...)						    \
@@ -625,15 +625,25 @@ static unsigned int linmodem_tx_empty(struct uart_port *port)
 static unsigned int linmodem_get_mctrl(struct uart_port *port)
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
 	unsigned long flags;
+#endif
 	unsigned char status;
 	unsigned int ret;
 
 	dbg();
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
 	spin_lock_irqsave(&p->port.lock, flags);
+#else	
+	/* serial_core takes lock for us */
+#endif
+
 	status = serial_in(p, UART_MSR);
+
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
 	spin_unlock_irqrestore(&p->port.lock, flags);
+#endif
 
 	ret = 0;
 	if (status & UART_MSR_DCD)
