@@ -45,7 +45,7 @@
 
 #ifdef ESS_DEBUG
 static int debug = 1;
-MODULE_PARM(debug, "i");
+module_param(debug, int, 0);
 MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
 
@@ -553,13 +553,13 @@ MODULE_LICENSE("GPL");
 MODULE_DESCRIPTION("ESS PCI modem driver: Based on linux 2.6.10 serial 8250_pci driver");
 MODULE_DEVICE_TABLE(pci, serial_pci_tbl);
 
-MODULE_PARM(irq,                "i");
+module_param(irq, int, 0);
 MODULE_PARM_DESC(irq,           "Override autodetected IRQ.");
 
 #if defined (HAL_I8XX) || defined (HAL_VIA686A)
-MODULE_PARM(iobase,             "i");
+module_param(iobase, int, 0);
 MODULE_PARM_DESC(iobase,        "Check for modem at iobase address.");
 
-MODULE_PARM(iobase1,            "i");
+module_param(iobase1, int, 0);
 MODULE_PARM_DESC(iobase1,       "Using iobase/iobase1 address.");
 #endif
