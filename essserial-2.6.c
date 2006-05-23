@@ -73,7 +73,7 @@ extern int debug;
 
 
 static int country_code = 0;
-MODULE_PARM(country_code, "i");
+module_param(country_code, int, 0);
 MODULE_PARM_DESC(country_code, "Select a country code for the ESS modem.");
 
 
