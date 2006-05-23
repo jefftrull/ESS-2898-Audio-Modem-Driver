@@ -1,0 +1,9 @@
+v0.1 Original version, based on pctel-0.9.7-9-rht-5 PCTel driver with
+     hardware/binary-specific changes for ES2898
+
+v0.2 Support >= 2.6.16 kernels
+     MODULE_PARM -> module_param
+     eliminate double-locking in 2.6.13 and later kernels (caused kernel panic in FC4/5)
+     fix minor memory leak
+
+	 
