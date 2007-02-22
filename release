@@ -21,7 +21,7 @@ cvs stat >> ${tmpdirname}/${relname}/manifest
 mkdir ${tmpdirname}/${relname}/lib
 cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/lib
 # tar it up for release
-tar -C ${tmpdirname} -cvzf ./${relname}.tar.gz ${relname}
+tar -C ${tmpdirname} -czf ./${relname}.tar.gz ${relname}
 # clean up directory
 rm -rf ${tmpdirname}
 
