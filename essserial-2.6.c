@@ -43,7 +43,7 @@
 #include "include/vuart.h"
 
 
-#define DRIVER_VERSION "v0.2"
+#define DRIVER_VERSION "v0.3"
 #define DRIVER_AUTHOR  "Jeff Trull <linmodemstudent@gmail.com>"
 #define DRIVER_DESC    "ESS Tech ES2898 modem driver"
 #define DRIVER_LICENSE "GPL"
@@ -212,11 +212,7 @@ void esscom_do_timer_tick (unsigned long data) {
     __asm__ __volatile__("frstor %0": :"m" (i387));
     __asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));
 
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) )
-	linmodem_handle_port(p, regs);
-#else
-	linmodem_handle_port(p, (struct pt_regs *)NULL);
-#endif
+    linmodem_handle_port(p, (struct pt_regs *)NULL);
 
     /* reset timer for 10ms from now */
     mod_timer(&p->timer, jiffies + HZ / 100);
