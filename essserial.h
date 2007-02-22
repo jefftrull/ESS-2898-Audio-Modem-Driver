@@ -9,7 +9,6 @@
 #ifndef __ESSSERIAL_2_6_H
 #define __ESSSERIAL_2_6_H
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,9) )
@@ -24,16 +23,6 @@
 #define UART_CAP_AFE	(1 << 11)	/* MCR-based hw flow control */
 
 #undef SERIAL_DEBUG_PCI
-
-#if defined(__i386__) && (defined(CONFIG_M386) || defined(CONFIG_M486))
-#define SERIAL_INLINE
-#endif
-
-#ifdef SERIAL_INLINE
-#define _INLINE_ inline
-#else
-#define _INLINE_
-#endif
 
 #define PROBE_RSA	(1 << 0)
 #define PROBE_ANY	(~0)

@@ -13,7 +13,6 @@
  *      create a working 2.4 version in a similar manner.
  */
  
-#include <linux/config.h>
 #include <linux/version.h>
 #include <linux/module.h>
 #include <linux/kernel.h>

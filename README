@@ -42,7 +42,7 @@ If you have udev and the setup process did not detect it, it should be very simp
 to fix.  You need to create (as root) a file called /etc/udev/rules.d/ess.rules,
 with the following line inside:
 
-KERNEL="ttyS_ESS0", SYMLINK="modem"
+KERNEL=="ttyS_ESS0", SYMLINK="modem"
 
 after another reboot, or even sooner, /dev/modem should reappear.
 

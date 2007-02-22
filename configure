@@ -3,7 +3,7 @@
 # derived from configure script for pctel based modems
 # history entries below date from pctel
 # (w) by J. Stifter
-# $Id: configure,v 1.2 2006-04-17 19:04:20 jet Exp $
+# $Id: configure,v 1.3 2007-02-22 02:33:37 jet Exp $
 #
 # Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
 # Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
@@ -258,6 +258,27 @@ fi
 echo "$gcc_version"
 
 #
+# find out kernel gcc version
+#
+echo -n "checking for kernel gcc version..."
+kernel_gcc_version=`sed 's/.*gcc version \([0-9]\+\.[0-9]\+\.[0-9]\+\).*/\1/' /proc/version`
+if [ -z $kernel_gcc_version ]
+then
+   echo "** error"
+   echo could not determine kernel gcc version
+   exit 1
+fi
+echo $kernel_gcc_version
+if [ $gcc_version != $kernel_gcc_version ]
+then
+   echo "** error"
+   echo installed gcc version $gcc_version does not match kernel gcc version $kernel_gcc_version
+   echo installing the kernel driver module is not possible
+   echo installing a different version of gcc, or your kernel, is necessary
+   exit 1
+fi
+
+#
 # find kernel sources
 #
 find_kernel_includes
@@ -305,10 +326,17 @@ fi
 #
 # find out exact kernel version from version.h file
 #
-echo -n "checking for kernel version in version.h..."
+# UTS_RELEASE stops being defined in version.h at 2.6.18
+if [ $mid -eq 6 -a $sub -ge 18 ]
+then
+versionfile="utsrelease.h"
+else
+versionfile="version.h"
+fi
+echo -n "checking for kernel version in $versionfile..."
 cat >t.c <<EOF
 #include <stdio.h>
-#include "$kernel_inc/linux/version.h"
+#include "$kernel_inc/linux/$versionfile"
 int main() {
    printf("%s\n", UTS_RELEASE);
    return 0;

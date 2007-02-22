@@ -14,13 +14,12 @@
 #ifndef _LINUX_LINMODEM_H
 #define _LINUX_LINMODEM_H
 
-#include <linux/version.h>
-
 /* serial_core.h has no include protection, so fix */
 #ifndef UPF_FOURPORT
 # include <linux/serial_core.h>
 #endif
 #include <linux/serial.h>
+#include <linux/version.h>
 
 #define UART_CAP_FIFO	(1 << 8)	/* UART has FIFO */
 #define UART_CAP_EFR	(1 << 9)	/* UART has EFR */
@@ -69,9 +68,12 @@ struct linmodem_ops {
 	unsigned int (*serial_in)(struct linmodem_port *, int offset);
 	void         (*serial_out)(struct linmodem_port *, int offset,
 				   int value);
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) )
 	irqreturn_t  (*interrupt)(int irq, void *dev_id,
 					  struct pt_regs *regs);
-	void         (*set_mctrl)(struct linmodem_port *, unsigned int mctrl);
+#else
+        irqreturn_t  (*interrupt)(int irq, void *dev_id);
+#endif
 	void         (*autoconfig)(struct linmodem_port *,
 				   unsigned int probeflags);
 	int          (*startup)(struct linmodem_port *);
@@ -83,17 +85,19 @@ void linmodem_unregister_port(int line);
 int linmodem_new(struct linmodem_port *port);
 void linmodem_del(struct linmodem_port *port);
 int linmodem_hw_new(struct uart_port *port);
-
+void linmodem_handle_port(struct linmodem_port *p, struct pt_regs *regs);
+void linmodem_clear_fifos(struct linmodem_port *p);
+void linmodem_set_mctrl(struct uart_port *port, unsigned int mctrl);
 
 /* XXX: REMOVE ME!!! */
 int serial_link_irq_chain(struct linmodem_port *p);
 void serial_unlink_irq_chain(struct linmodem_port *p);
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-void linmodem_stop_tx(struct uart_port *port);
-#define stop_tx(port) (linmodem_stop_tx(port))
+
+/* kernel version handling to make code cleaner */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
+#define STOP_TX(p) linmodem_stop_tx(p, 0)
 #else
-void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop);
-#define stop_tx(port) (linmodem_stop_tx(port, 0))
+#define STOP_TX(p) linmodem_stop_tx(p)
 #endif
 
 #endif /* _LINUX_LINMODEM_H */

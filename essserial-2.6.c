@@ -20,7 +20,6 @@
  * for kernel 2.4 by Shachar Raindel
  */
 
-#include <linux/config.h>
 #include <linux/version.h>
 
 #include <linux/module.h>
@@ -136,195 +135,17 @@ struct irq_info {
 	struct list_head	*head;
 };
 #define is_real_interrupt(irq)	((irq) != 0)
-static inline void
-receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
-{
-	struct tty_struct *tty = p->port.info->tty;
-	unsigned char ch, lsr = *status;
-	int max_count = 256;
-	char flag;
-
-	dbg();
-
-	do {
-	    /* the next bit simply disappears in the 2.6.16 version of 8250.c */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,16) )
-		/* The following is not allowed by the tty layer and
-		   unsafe. It should be fixed ASAP */
-		if (unlikely(tty->flip.count >= TTY_FLIPBUF_SIZE)) {
-			if(tty->low_latency)
-				tty_flip_buffer_push(tty);
-			/* If this failed then we will throw away the
-			   bytes but must do so to clear interrupts */
-		}
-#endif
-		ch = ess_serial_inp(p, UART_RX);
-
-		flag = TTY_NORMAL;
-		p->port.icount.rx++;
-
-		if (unlikely(lsr & (UART_LSR_BI | UART_LSR_PE |
-				    UART_LSR_FE | UART_LSR_OE))) {
-			/*
-			 * For statistics only
-			 */
-			if (lsr & UART_LSR_BI) {
-				lsr &= ~(UART_LSR_FE | UART_LSR_PE);
-				p->port.icount.brk++;
-				/*
-				 * We do the SysRQ and SAK checking
-				 * here because otherwise the break
-				 * may get masked by ignore_status_mask
-				 * or read_status_mask.
-				 */
-				if (uart_handle_break(&p->port))
-					goto ignore_char;
-			} else if (lsr & UART_LSR_PE)
-				p->port.icount.parity++;
-			else if (lsr & UART_LSR_FE)
-				p->port.icount.frame++;
-			if (lsr & UART_LSR_OE)
-				p->port.icount.overrun++;
-
-			/*
-			 * Mask off conditions which should be ingored.
-			 */
-			lsr &= p->port.read_status_mask;
-
-			if (lsr & UART_LSR_BI) {
-				dbg("handling break...");
-				flag = TTY_BREAK;
-			} else if (lsr & UART_LSR_PE)
-				flag = TTY_PARITY;
-			else if (lsr & UART_LSR_FE)
-				flag = TTY_FRAME;
-		}
-		if (uart_handle_sysrq_char(&p->port, ch, regs))
-			goto ignore_char;
-		/* this next part changes sometime before 2.6.13 in 8250.c */
-#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
-		if ((lsr & p->port.ignore_status_mask) == 0) {
-			tty_insert_flip_char(tty, ch, flag);
-		}
-		if ((lsr & UART_LSR_OE) &&
-		    tty->flip.count < TTY_FLIPBUF_SIZE) {
-			/*
-			 * Overrun is special, since it's reported
-			 * immediately, and doesn't affect the current
-			 * character.
-			 */
-			tty_insert_flip_char(tty, 0, TTY_OVERRUN);
-		}
-#else
-		uart_insert_char(&p->port, lsr, UART_LSR_OE, ch, flag);
-#endif
-
-	ignore_char:
-		lsr = ess_serial_inp(p, UART_LSR);
-	} while ((lsr & UART_LSR_DR) && (max_count-- > 0));
-	tty_flip_buffer_push(tty);
-	*status = lsr;
-}
-
-static inline void transmit_chars(struct linmodem_port *p)
-{
-	struct circ_buf *xmit = &p->port.info->xmit;
-
-	dbg();
-
-	if (p->port.x_char) {
-		ess_serial_outp(p, UART_TX, p->port.x_char);
-		p->port.icount.tx++;
-		p->port.x_char = 0;
-		return;
-	}
-
-	if (uart_circ_empty(xmit) || uart_tx_stopped(&p->port)) {
-
-	        stop_tx(&p->port);
-		return;
-	}
-
-	while (uart_circ_chars_pending(xmit)
-      	       && (ess_serial_in(p, UART_LSR) & UART_LSR_THRE)) {
-	    if ((xmit == NULL) || (xmit->tail > 0x1000) || (xmit->buf == NULL)) {
-		err("something is wrong with the xmit buf");
-		BUG_ON(1);
-	    }
-
-		ess_serial_out(p, UART_TX, xmit->buf[xmit->tail]);
-
-		xmit->tail++;
-		if (xmit->tail >= UART_XMIT_SIZE) {
-			xmit->tail = 0;
-		}
-
-		p->port.icount.tx++;
-	}
-
-	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
-		uart_write_wakeup(&p->port);
-
-	if (uart_circ_empty(xmit))
-	        stop_tx(&p->port);
-}
-
-static inline void check_modem_status(struct linmodem_port *p)
-{
-	int status;
-
-	dbg();
-
-	status = ess_serial_in(p, UART_MSR);
-
-	if ((status & UART_MSR_ANY_DELTA) == 0)
-		return;
-
-	if (status & UART_MSR_TERI)
-		p->port.icount.rng++;
-	if (status & UART_MSR_DDSR)
-		p->port.icount.dsr++;
-	if (status & UART_MSR_DDCD)
-		uart_handle_dcd_change(&p->port, status & UART_MSR_DCD);
-	if (status & UART_MSR_DCTS)
-		uart_handle_cts_change(&p->port, status & UART_MSR_CTS);
-
-	wake_up_interruptible(&p->port.info->delta_msr_wait);
-}
-
-static inline void essserial_clear_fifos(struct linmodem_port *p)
-{
-	dbg();
-
-	if (p->capabilities & UART_CAP_FIFO) {
-	        ess_serial_outp(p, UART_FCR, UART_FCR_ENABLE_FIFO);
-		ess_serial_outp(p, UART_FCR, UART_FCR_ENABLE_FIFO |
-				  UART_FCR_CLEAR_RCVR | UART_FCR_CLEAR_XMIT);
-		ess_serial_outp(p, UART_FCR, 0);
-	}
-}
-static inline void
-essserial_handle_port(struct linmodem_port *p, struct pt_regs *regs)
-{
-	unsigned int status = ess_serial_inp(p, UART_LSR);
-
-	dbg();
-
-	if (status & UART_LSR_DR) {
-		receive_chars(p, &status, regs);
-	}
-
-	check_modem_status(p);
-	if (status & UART_LSR_THRE){
-		transmit_chars(p);
-	}
-}
 /* XXX: END */
 
 unsigned long last_int_report = 0;
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) )
 static irqreturn_t  ess_interrupt(int irq, void *dev_id,
 				    struct pt_regs *regs )
+#else
+static irqreturn_t  ess_interrupt(int irq, void *dev_id)
+#endif
+
 {
 	static union i387_union i387;
 	static unsigned long cr0;
@@ -356,29 +177,6 @@ static irqreturn_t  ess_interrupt(int irq, void *dev_id,
 
 }
 
-static void ess_set_mctrl(struct linmodem_port *p, unsigned int mctrl)
-{
-	unsigned char mcr = 0;
-
-	dbg();
-
-	if (mctrl & TIOCM_RTS)
-		mcr |= UART_MCR_RTS;
-	if (mctrl & TIOCM_DTR)
-		mcr |= UART_MCR_DTR;
-	if (mctrl & TIOCM_OUT1)
-		mcr |= UART_MCR_OUT1;
-	if (mctrl & TIOCM_OUT2)
-		mcr |= UART_MCR_OUT2;
-	if (mctrl & TIOCM_LOOP)
-		mcr |= UART_MCR_LOOP;
-
-	mcr = mcr | p->mcr;
-
-
-	ess_serial_out(p, UART_MCR, mcr);
-}
-
 static void ess_autoconfig(struct linmodem_port *p, unsigned int probeflags)
 {
 	dbg();
@@ -387,6 +185,7 @@ static void ess_autoconfig(struct linmodem_port *p, unsigned int probeflags)
 	{
 		p->port.type     = PORT_ESS;
 		p->port.fifosize = p->config.fifo_size;
+		p->tx_loadsz     = 128;
 
 		return;
 	}
@@ -413,7 +212,11 @@ void esscom_do_timer_tick (unsigned long data) {
     __asm__ __volatile__("frstor %0": :"m" (i387));
     __asm__ __volatile__("mov %0,%%cr0" : : "r" (cr0));
 
-    essserial_handle_port(p, NULL);
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) )
+	linmodem_handle_port(p, regs);
+#else
+	linmodem_handle_port(p, (struct pt_regs *)NULL);
+#endif
 
     /* reset timer for 10ms from now */
     mod_timer(&p->timer, jiffies + HZ / 100);
@@ -438,7 +241,7 @@ static int ess_startup(struct linmodem_port *p)
 	 * Clear the FIFO buffers and disable them.
 	 * (they will be reeanbled in set_termios())
 	 */
-	essserial_clear_fifos(p);
+	linmodem_clear_fifos(p);
 
 	/*
 	 * Clear the interrupt registers.
@@ -485,7 +288,7 @@ static int ess_startup(struct linmodem_port *p)
 	if (is_real_interrupt(p->port.irq))
 		p->port.mctrl |= TIOCM_OUT2;
 
-	ess_set_mctrl(p, p->port.mctrl);
+	linmodem_set_mctrl((struct uart_port *)p, p->port.mctrl);
 	spin_unlock_irqrestore(&p->port.lock, flags);
 
 	/*
@@ -530,7 +333,7 @@ static void ess_shutdown(struct linmodem_port *p)
 	} else
 		p->port.mctrl &= ~TIOCM_OUT2;
 
-	ess_set_mctrl(p, p->port.mctrl);
+	linmodem_set_mctrl((struct uart_port *)p, p->port.mctrl);
 	spin_unlock_irqrestore(&p->port.lock, flags);
 
 	/*
@@ -538,7 +341,7 @@ static void ess_shutdown(struct linmodem_port *p)
 	 */
 	ess_serial_out(p, UART_LCR,
 			 ess_serial_inp(p, UART_LCR) & ~UART_LCR_SBC);
-	essserial_clear_fifos(p);
+	linmodem_clear_fifos(p);
 
 	/*
 	 * Read data port to reset things, and then unlink from
@@ -558,7 +361,6 @@ struct linmodem_ops ess_ops = {
 	.serial_in  = ess_serial_in,
 	.serial_out = ess_serial_out,
 	.interrupt  = ess_interrupt,
-	.set_mctrl  = ess_set_mctrl,
 	.autoconfig = ess_autoconfig,
 	.startup    = ess_startup,
 	.shutdown   = ess_shutdown,
@@ -575,7 +377,9 @@ struct linmodem_port ess_port = {
 	.reg = {
 		.owner = THIS_MODULE,
 		.driver_name = "ess",
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,18) )
 		.devfs_name  = "ttess/",
+#endif
 		.dev_name    = "ttyS_ESS",
 		.major       = ESS_MAJOR,
 		.minor       = ESS_MINOR,

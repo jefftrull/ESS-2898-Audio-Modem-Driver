@@ -69,7 +69,7 @@ rmmod:
 install:
 	rm -f /dev/ttyS_ESS0
 ifdef UDEV
-	echo "KERNEL=\"ttyS_ESS0\", SYMLINK=\"modem\"" > /etc/udev/rules.d/ess.rules
+	echo "KERNEL==\"ttyS_ESS0\", SYMLINK=\"modem\"" > /etc/udev/rules.d/70-ess.rules
 else
 	mknod /dev/ttyS_ESS0 c 62 64
 	chmod 666 /dev/ttyS_ESS0
@@ -89,7 +89,7 @@ uninstall:
 	$(RM) $(MODULE_DIR)/esscom.ko
 	/sbin/depmod -a
 ifdef UDEV
-	rm /etc/udev/rules.d/ess.rules
+	rm /etc/udev/rules.d/70-ess.rules
 else
 	rm -f /dev/modem /dev/ttyS_ESS0
 endif

@@ -21,7 +21,6 @@
  *  mapbase is the physical address of the IO port.
  *  membase is an 'ioremapped' cookie.
  */
-#include <linux/config.h>
 #include <linux/version.h>
 
 #include <linux/module.h>
@@ -166,9 +165,21 @@ static /* inline */ void serial_out(struct linmodem_port *p, int offset,
 
 
 /*
+ * For the 16C950
+ */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
+static void serial_icr_write(struct linmodem_port *p, int offset, int value)
+{
+	dbg();
+	serial_out(p, UART_SCR, offset);
+	serial_out(p, UART_ICR, value);
+}
+#endif
+
+/*
  * FIFO support.
  */
-static inline void linmodem_clear_fifos(struct linmodem_port *p)
+void linmodem_clear_fifos(struct linmodem_port *p)
 {
 	dbg();
 	if (p->capabilities & UART_CAP_FIFO) {
@@ -178,6 +189,7 @@ static inline void linmodem_clear_fifos(struct linmodem_port *p)
 		serial_outp(p, UART_FCR, 0);
 	}
 }
+EXPORT_SYMBOL(linmodem_clear_fifos);
 
 /*
  * IER sleep support.  UARTs which have EFRs need the "extended
@@ -318,10 +330,10 @@ struct linmodem_port *linmodem_find_by_line(int line)
 		return NULL;
 }
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-/*static */void linmodem_stop_tx(struct uart_port *port)
-#else
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
 /*static */void linmodem_stop_tx(struct uart_port *port, unsigned int tty_stop)
+#else
+/*static */void linmodem_stop_tx(struct uart_port *port)
 #endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
@@ -333,13 +345,24 @@ struct linmodem_port *linmodem_find_by_line(int line)
 		serial_out(p, UART_IER, p->ier);
 	}
 
+	/*
+	 * We only do this from uart_stop - if we run out of
+	 * characters to send, we don't want to prevent the
+	 * FIFO from emptying.
+	 */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
+	if (p->port.type == PORT_16C950 && tty_stop) {
+		p->acr |= UART_ACR_TXDIS;
+		serial_icr_write(p, UART_ACR, p->acr);
+	}
+#endif
 }
 EXPORT_SYMBOL(linmodem_stop_tx);
 
-#if LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,14)
-static void linmodem_start_tx(struct uart_port *port)
-#else
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
 static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
+#else
+static void linmodem_start_tx(struct uart_port *port)
 #endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
@@ -350,6 +373,15 @@ static void linmodem_start_tx(struct uart_port *port, unsigned int tty_start)
 		p->ier |= UART_IER_THRI;
 		serial_out(p, UART_IER, p->ier);
 	}
+	/*
+	 * We only do this from uart_start
+	 */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,17) )
+	if (tty_start && p->port.type == PORT_16C950) {
+		p->acr &= ~UART_ACR_TXDIS;
+		serial_icr_write(p, UART_ACR, p->acr);
+	}
+#endif
 }
 
 static void linmodem_stop_rx(struct uart_port *port)
@@ -435,7 +467,11 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 			else if (lsr & UART_LSR_FE)
 				flag = TTY_FRAME;
 		}
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,19) )
 		if (uart_handle_sysrq_char(&p->port, ch, regs))
+#else
+		if (uart_handle_sysrq_char(&p->port, ch))
+#endif
 			goto ignore_char;
 
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,13) )
@@ -475,7 +511,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		return;
 	}
 	if (uart_circ_empty(xmit) || uart_tx_stopped(&p->port)) {
-	        stop_tx(&p->port);
+	        STOP_TX(&p->port);
 		return;
 	}
 
@@ -492,8 +528,7 @@ static inline void transmit_chars(struct linmodem_port *p)
 		uart_write_wakeup(&p->port);
 
 	if (uart_circ_empty(xmit))
-	        stop_tx(&p->port);
-
+	        STOP_TX(&p->port);
 }
 
 static inline void check_modem_status(struct linmodem_port *p)
@@ -522,7 +557,7 @@ static inline void check_modem_status(struct linmodem_port *p)
 /*
  * This handles the interrupt from one port.
  */
-static inline void
+void
 linmodem_handle_port(struct linmodem_port *p, struct pt_regs *regs)
 {
 	unsigned int status = serial_inp(p, UART_LSR);
@@ -537,6 +572,7 @@ linmodem_handle_port(struct linmodem_port *p, struct pt_regs *regs)
 		transmit_chars(p);
 	}
 }
+EXPORT_SYMBOL(linmodem_handle_port);
 
 /*
  * To support ISA shared interrupts, we need to have one interrupt
@@ -657,14 +693,31 @@ static unsigned int linmodem_get_mctrl(struct uart_port *port)
 	return ret;
 }
 
-static void linmodem_set_mctrl(struct uart_port *port, unsigned int mctrl)
+void linmodem_set_mctrl(struct uart_port *port, unsigned int mctrl)
 {
+	unsigned char mcr = 0;
 	struct linmodem_port *p = (struct linmodem_port *)port;
 
 	dbg();
 
-	p->ops->set_mctrl(p, mctrl);
+	if (mctrl & TIOCM_RTS)
+		mcr |= UART_MCR_RTS;
+	if (mctrl & TIOCM_DTR)
+		mcr |= UART_MCR_DTR;
+	if (mctrl & TIOCM_OUT1)
+		mcr |= UART_MCR_OUT1;
+	if (mctrl & TIOCM_OUT2)
+		mcr |= UART_MCR_OUT2;
+	if (mctrl & TIOCM_LOOP)
+		mcr |= UART_MCR_LOOP;
+
+	mcr = mcr | p->mcr;
+
+	serial_out(p, UART_MCR, mcr);
+
 }
+
+EXPORT_SYMBOL(linmodem_set_mctrl);
 
 static void linmodem_break_ctl(struct uart_port *port, int break_state)
 {
