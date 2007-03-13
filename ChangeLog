@@ -6,4 +6,10 @@ v0.2 Support >= 2.6.16 kernels
      eliminate double-locking in 2.6.13 and later kernels (caused kernel panic in FC4/5)
      fix minor memory leak
 
-	 
+v0.3 Support kernels from 2.6.17 through 2.6.20, at least
+     smarter about where to find kernel version info
+     compare gcc to kernel version
+     big code cleanup (move most tty stuff into linmodem section,
+         eliminate duplication)
+     fix for "__udiv" problem - use right shift instead
+     correct udev control file syntax
