@@ -3,7 +3,7 @@
 # derived from configure script for pctel based modems
 # history entries below date from pctel
 # (w) by J. Stifter
-# $Id: configure,v 1.3 2007-02-22 02:33:37 jet Exp $
+# $Id: configure,v 1.4 2008-01-20 16:13:35 jet Exp $
 #
 # Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
 # Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
@@ -32,7 +32,16 @@ version=0.1
 # change the parameters below, if needed (this is normally only
 # needed if you don't have a /lib/modules/<kernel>/build link).
 ##################################################################
-kernel_src=/usr/src/linux
+
+# do I have a KERNEL_DIR= argument?
+
+kernel_override=${1#KERNEL_DIR=}
+if [ -n "$kernel_override" ]
+then
+   echo overriding kernel path with $kernel_override
+fi
+
+kernel_src=${kernel_override:-/usr/src/linux}
 kernel_inc=${kernel_src}/include
 ##################################################################
 
@@ -106,6 +115,14 @@ function autodetection
          eval modem_${MODEM_VENDOR}=yes      
 	 target=ess
       fi
+
+      if [ -n "$kernel_override" ]
+      then
+	 # assume this is an expert user and compile whether modem is present or not
+	 target=ess
+	 found="yes"
+      fi
+
    done
    
    if [ "${found}" = "no" ]; then
@@ -125,6 +142,12 @@ function autodetection
 function find_kernel_includes
 {
    echo -n "searching for kernel includes..."
+
+   if [ -n "$kernel_override" ]
+   then
+      echo using ${kernel_inc}
+      return
+   fi
    
    # look in /lib/modules/<kernel>/build/include
    if [ -r "/lib/modules/`uname -r`/build/include/linux/version.h" ]
@@ -198,13 +221,19 @@ auto_install=1
 echo -n "checking for running kernel version..."
 if [[ `perl -v` ]]  
 then
-   kernel_version=`uname -r`
+    if [ -n "$kernel_override" ]
+    then
+	kernel_version=`awk '/CONFIG_KERNELVERSION/ {print gensub(/\"([0-9]+\.[0-9]+\.[0-9]+).*/, "\\\\1", 1, $3)}' ${kernel_inc}/linux/autoconf.h`
+    else
+	kernel_version=`uname -r`
+    fi
 else
    echo '** error'
    echo "couldn't find perl to determine your kernel version."
    echo -n "please type your running kernel version, e.g. 2.4.7-ac2 manually: "
    read kernel_version
 fi
+
 main=`echo ${kernel_version} | perl -e 'while(<>){
   /^([0-9]*)\.([0-9]*)\.([0-9]*).*$/ ;
   print "$1\n";
