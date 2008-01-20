@@ -43,7 +43,7 @@
 #include "include/vuart.h"
 
 
-#define DRIVER_VERSION "v0.3"
+#define DRIVER_VERSION "v0.4"
 #define DRIVER_AUTHOR  "Jeff Trull <linmodemstudent@gmail.com>"
 #define DRIVER_DESC    "ESS Tech ES2898 modem driver"
 #define DRIVER_LICENSE "GPL"
