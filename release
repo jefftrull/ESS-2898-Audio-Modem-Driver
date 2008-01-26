@@ -8,7 +8,7 @@ ver=`fgrep '#define DRIVER_VERSION' ess/essserial-2.6.c | cut -d ' ' -f 3`
 ver=`eval echo $ver`
 relname=ess_2.6-${ver}
 tmpdirname=/tmp/${relname}_$$
-cvs export -D today -d ${tmpdirname}/${relname} ess
+cvs -Q export -D today -d ${tmpdirname}/${relname} ess
 # remove myself and binary-creating stuff
 rm ${tmpdirname}/${relname}/release
 rm ${tmpdirname}/${relname}/Makefile.mungebin
@@ -16,7 +16,7 @@ rm ${tmpdirname}/${relname}/fixup_relocs.c
 
 # create a manifest with all the CVS versions
 date > ${tmpdirname}/${relname}/manifest
-cvs stat >> ${tmpdirname}/${relname}/manifest
+cvs -q stat >> ${tmpdirname}/${relname}/manifest
 # add the binary
 mkdir ${tmpdirname}/${relname}/lib
 cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/lib
@@ -24,4 +24,5 @@ cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/lib
 tar -C ${tmpdirname} -czf ./${relname}.tar.gz ${relname}
 # clean up directory
 rm -rf ${tmpdirname}
+echo created distribution tarball ${relname}.tar.gz in current directory
 
