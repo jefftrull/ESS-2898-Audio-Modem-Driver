@@ -602,7 +602,11 @@ static void serial_do_unlink(struct irq_info *i, struct linmodem_port *p)
 int serial_link_irq_chain(struct linmodem_port *p)
 {
 	struct irq_info *i = irq_lists + p->port.irq;
+#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,19) )
+	int ret, irq_flags = p->port.flags & UPF_SHARE_IRQ ? IRQF_SHARED : 0;
+#else
 	int ret, irq_flags = p->port.flags & UPF_SHARE_IRQ ? SA_SHIRQ : 0;
+#endif
 
 	dbg();
 
@@ -777,8 +781,13 @@ static unsigned int linmodem_get_divisor(struct uart_port *port,
 }
 
 static void
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,20) )
 linmodem_set_termios(struct uart_port *port, struct termios *termios,
 		     struct termios *old)
+#else
+linmodem_set_termios(struct uart_port *port, struct ktermios *termios,
+		     struct ktermios *old)
+#endif
 {
 	struct linmodem_port *p = (struct linmodem_port *)port;
 	unsigned char cval, fcr = 0;
