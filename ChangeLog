@@ -13,3 +13,9 @@ v0.3 Support kernels from 2.6.17 through 2.6.20, at least
          eliminate duplication)
      fix for "__udiv" problem - use right shift instead
      correct udev control file syntax
+
+v0.4 Updates through 2.6.24
+     mostly just fixing deprecated calls
+     cleaned up Makefile a bit
+     Added a configure feature for module builders where they can override the
+     kernel path used instead of defaulting to the one they're running
