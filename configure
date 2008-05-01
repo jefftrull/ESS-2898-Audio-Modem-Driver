@@ -3,7 +3,7 @@
 # derived from configure script for pctel based modems
 # history entries below date from pctel
 # (w) by J. Stifter
-# $Id: configure,v 1.4 2008-01-20 16:13:35 jet Exp $
+# $Id: configure,v 1.5 2008-05-01 16:26:11 jet Exp $
 #
 # Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
 # Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
@@ -41,8 +41,8 @@ then
    echo overriding kernel path with $kernel_override
 fi
 
-kernel_src=${kernel_override:-/usr/src/linux}
-kernel_inc=${kernel_src}/include
+kernel_src=${kernel_override:-/lib/modules/`uname -r`/build}
+kernel_inc=/usr/src/linux/include
 ##################################################################
 
 
@@ -150,10 +150,17 @@ function find_kernel_includes
    fi
    
    # look in /lib/modules/<kernel>/build/include
-   if [ -r "/lib/modules/`uname -r`/build/include/linux/version.h" ]
+   if [ -r "${kernel_src}/include/linux/version.h" ]
    then
-      kernel_src="/lib/modules/`uname -r`/build"
       kernel_inc="${kernel_src}/include"
+      echo found at ${kernel_inc}
+      return
+   fi
+
+   # and also "include2" (OpenSuSE sometimes does this)
+   if [ -r "${kernel_src}/include2/linux/version.h" ]
+   then
+      kernel_inc="${kernel_src}/include2"
       echo found at ${kernel_inc}
       return
    fi
@@ -329,28 +336,6 @@ fi
       echo about no autoconf.h file.
       exit 1
    fi
-   modversions=${kernel_inc}/linux/autoconf.h
-   echo "${modversions}"
-   
-   echo -n "checking for asm/mach-default..."
-   if [ ! -d ${kernel_inc}/asm/mach-default ]
-   then
-      # SuSE 9.3 doesn't have 'asm' under the build directory, so revert to
-      # /usr/src/linux
-      if [ -d /usr/src/linux/include/asm/mach-default ]
-      then
-          kernel_inc=/usr/src/linux/include
-      else
-          echo "** error"
-          echo include/asm/mach-default directory could not be found
-          echo you probably need to configure your kernel, please read the FAQ
-          echo about no include/asm/mach-default directory.
-          exit 1
-      fi
-   fi
-   echo "yes"
-   extra_includes=-I${kernel_inc}/asm/mach-default
-   
 
 #
 # find out exact kernel version from version.h file
