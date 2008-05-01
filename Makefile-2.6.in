@@ -4,10 +4,10 @@
 
 MODULE_DIR=$(DESTDIR)/lib/modules/$(KERNEL_VER)/misc
 
-CFLAGS += -DVERSION=\"$(VERSION)\" -mhard-float
+EXTRA_CFLAGS += -DVERSION=\"$(VERSION)\" -mhard-float
 
 ifeq ($(DEBUG),1)
-CFLAGS += -DLINMODEM_DEBUG=1 -DESS_DEBUG=1
+EXTRA_CFLAGS += -DLINMODEM_DEBUG=1 -DESS_DEBUG=1
 endif
 
 BIN_DIR = lib/
