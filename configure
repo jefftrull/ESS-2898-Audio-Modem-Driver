@@ -3,7 +3,7 @@
 # derived from configure script for pctel based modems
 # history entries below date from pctel
 # (w) by J. Stifter
-# $Id: configure,v 1.5 2008-05-01 16:26:11 jet Exp $
+# $Id: configure,v 1.6 2008-05-05 06:17:40 jet Exp $
 #
 # Modified to detect 8086:24c6 (Intel 82801DCM AC'97 Modem Controller)
 # Robert Thornburrow <robert.thornburrow@tsac.fsnet.co.uk> 09/04/2004
@@ -38,13 +38,27 @@ version=0.1
 kernel_override=${1#KERNEL_DIR=}
 if [ -n "$kernel_override" ]
 then
-   echo overriding kernel path with $kernel_override
+   cat<<END
+
+Overriding kernel path with $kernel_override
+Faking an ESS chipset too, to enable the compile.
+While the makefile will be created, it will not be automatically run.
+
+END
+   sleep 2
+   found=faked
 fi
 
 kernel_src=${kernel_override:-/lib/modules/`uname -r`/build}
+echo kernel_src=$kernel_src
 kernel_inc=/usr/src/linux/include
-##################################################################
+if [[ ! -d /usr/src/linux/include && -d ${kernel_src}/include ]] ; then
+    kernel_inc=$kernel_src/include
+fi
 
+##################################################################
+# choose an alternate PCI id, if desirable 
+PCIid=125d:2898
 
 ################################################################
 # autodetection
@@ -78,10 +92,12 @@ function autodetection
 #
 #   125d:2898    ESS Technology ES2898 Modem (rev 03)
 #
+   
+#   DEVICES="0x125d:0x2898", PCIid specified above
 
-   DEVICES="0x125d:0x2898"
-
-   found="no"
+   if test -z "$found" ; then
+     found="no"
+   fi
    
    # Test the lspci output to see if the 2nd column is "Class"
    # If yes, the pci id if field 4, else it is field 3
@@ -93,43 +109,19 @@ function autodetection
       fid=3
    fi
 
-   for PCIDEV in `${LSPCI} -n | cut -d' ' -f${fid}`
-   do
-      DEVVEN=$(( 0x`echo ${PCIDEV} | cut -d':' -f1` + 0 ))
-      DEVNUM=$(( 0x`echo ${PCIDEV} | cut -d':' -f2` + 0 ))
-      for DEV in ${DEVICES}
-      do
-         VENDOR=$(( `echo ${DEV} | cut -d':' -f1` + 0 ))
-         DEVMIN=$(( `echo ${DEV} | cut -d':' -f2 | cut -d'-' -f1` + 0 ))
-         DEVMAX=$(( `echo ${DEV} | cut -d':' -f2 | cut -d'-' -f2` + 0 ))
+   ess=$(${LSPCI} -n |grep $PCIid | cut -d' ' -f${fid})
+   if test -z "$ess" ; then
+     echo "Supported ESS device $PCIid NOT found."
+   else
+     found="yes"
+   fi
 
-         if [ ${DEVVEN} -eq ${VENDOR} -a ${DEVNUM} -ge ${DEVMIN} -a ${DEVNUM} -le ${DEVMAX} ]
-         then
-            found="yes"
-            MODEM_VENDOR=0x`echo ${PCIDEV} | cut -d':' -f1`
-         fi
-      done
-
-      if test $found = "yes"; then
-         eval test \"\$modem_${MODEM_VENDOR}\" = yes && continue
-         eval modem_${MODEM_VENDOR}=yes      
-	 target=ess
-      fi
-
-      if [ -n "$kernel_override" ]
-      then
-	 # assume this is an expert user and compile whether modem is present or not
-	 target=ess
-	 found="yes"
-      fi
-
-   done
-   
    if [ "${found}" = "no" ]; then
       echo '** error'
       echo "the supported modem (ESS Technology ES2898) is not present on your system"
    else
-      echo "found. Your modem is a ${target} type modem."
+      target=ess
+      echo "found. Your supported modem is of type: ${target} $PCIid"
    fi
 }
 
@@ -230,7 +222,7 @@ if [[ `perl -v` ]]
 then
     if [ -n "$kernel_override" ]
     then
-	kernel_version=`awk '/CONFIG_KERNELVERSION/ {print gensub(/\"([0-9]+\.[0-9]+\.[0-9]+).*/, "\\\\1", 1, $3)}' ${kernel_inc}/linux/autoconf.h`
+	kernel_version=`perl -ne 'if (/CONFIG_KERNELVERSION\W+\"(\d+\.\d+\.\d+)/) {print "$1\n"}' ${kernel_inc}/linux/autoconf.h`
     else
 	kernel_version=`uname -r`
     fi
