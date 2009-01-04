@@ -408,7 +408,11 @@ static void linmodem_enable_ms(struct uart_port *port)
 static inline void
 receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 {
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27) )
 	struct tty_struct *tty = p->port.info->tty;
+#else
+	struct tty_struct *tty = p->port.info->port.tty;
+#endif
 	unsigned char ch, lsr = *status;
 	int max_count = 256;
 	char flag;
