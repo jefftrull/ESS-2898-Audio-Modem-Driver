@@ -43,7 +43,7 @@
 #include "include/vuart.h"
 
 
-#define DRIVER_VERSION "v0.4"
+#define DRIVER_VERSION "v0.5"
 #define DRIVER_AUTHOR  "Jeff Trull <linmodemstudent@gmail.com>"
 #define DRIVER_DESC    "ESS Tech ES2898 modem driver"
 #define DRIVER_LICENSE "GPL"
@@ -147,7 +147,11 @@ static irqreturn_t  ess_interrupt(int irq, void *dev_id)
 #endif
 
 {
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26) )
 	static union i387_union i387;
+#else
+	static struct i387_fxsave_struct i387;
+#endif
 	static unsigned long cr0;
 	static unsigned long flags;
 	struct irq_info *i = dev_id;
@@ -196,7 +200,11 @@ unsigned long last_report = 0;
 void esscom_do_timer_tick (unsigned long data) {
 
     struct linmodem_port *p;
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,26) )
     static union i387_union i387;
+#else
+    static struct i387_fxsave_struct i387;
+#endif
     static unsigned long cr0;
 
     p = (struct linmodem_port *) data;
