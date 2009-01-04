@@ -57,7 +57,9 @@ CHANGE_RELOC_FLAGS = -c pci_find_device_R0ee75d4c,ess_unused_function \
 	-c kfree_s_R06d9dd5d,ess_unused_function \
 	-c kmalloc_R93d4cfe6,ess_unused_function \
 	-c interruptible_sleep_on_Rc0f2a9fa,ess_unused_function \
-	-c __wake_up_Rb2c45411,ess_unused_function
+	-c __wake_up_Rb2c45411,ess_unused_function \
+	-c __up_wakeup,ess_unused_function \
+	-c __down_failed,ess_unused_function
 
 # relocs to remove, as they are undefined symbols in routines that won't be called
 # these are generally data symbols, as unused functions get pointed to ess_unused_function
