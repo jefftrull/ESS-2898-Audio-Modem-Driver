@@ -1,0 +1,9 @@
+#!/bin/bash
+# jet 2010-04-11
+# a hack for DKMS so we create a Makefile in the right place
+# DKMS does not cd to the build directory until AFTER the pre_build script (this) gets run,
+# so our generated Makefile will be in the current working directory!
+# workaround: cd to build directory immediately
+cd $1
+./configure
+
