@@ -10,23 +10,24 @@ ifeq ($(DEBUG),1)
 EXTRA_CFLAGS += -DLINMODEM_DEBUG=1 -DESS_DEBUG=1
 endif
 
-BIN_DIR = lib/
-
 obj-m += linmodem.o
 obj-m += esscom.o
 obj-m += esscom_hw.o
+# build a library file out of esscom_bin.2.6.o_shipped (kbuild figures this out)
+lib-y += esscom_bin.2.6.o
+# fix warnings about COMMON symbols
+ldflags-y += -d
+
 linmodem-objs := linmodem-2.6.o
 esscom-objs := essserial-2.6.o essserial_pci.o
-esscom_hw-objs := essserial_hw.o binary.a
-
-BIN_OBJS = $(BIN_DIR)esscom_bin.2.6.o
+esscom_hw-objs := essserial_hw.o lib.a
 
 EXTRA_LDFLAGS := -z muldefs
 
-all: 	binary.a
+all:
 	make -C $(KERNEL_DIR) M=$(PWD)
 
-verbose: binary.a
+verbose:
 	make -C $(KERNEL_DIR) M=$(PWD) V=1
 
 clean:
@@ -42,19 +43,11 @@ clean:
 	rm -f .linmodem-2.6.o.cmd .essserial-2.6.o.cmd .essserial_hw.o.cmd
 	rm -f .essserial_pci.o.cmd
 	rm -rf .tmp_versions
-	rm -f binary.a
+	rm -f lib.a esscom_bin.2.6.o .lib.a.cmd modules.order Modules.symver
 
 .s.o:
 	@echo "  CC	$@"
 	@gcc -c $< -o $@
-
-# how to take a 111.zip (unmodified 2.2 distribution) and create a linkable object file
-# two step process: first, run objcopy, then run a special program to manipulate relocs
-# and make changes to the binary
-
-binary.a: $(BIN_DIR)esscom_bin.2.6.o
-	@echo "  LD	binary.a"
-	@ld -d -i $(BIN_OBJS) -o binary.a
 
 insmod:
 	/sbin/insmod linmodem.ko

@@ -410,8 +410,10 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 {
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27) )
 	struct tty_struct *tty = p->port.info->tty;
-#else
+#elsif ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
 	struct tty_struct *tty = p->port.info->port.tty;
+#else
+	struct tty_struct *tty = p->port.state->port.tty;
 #endif
 	unsigned char ch, lsr = *status;
 	int max_count = 256;
@@ -503,7 +505,11 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 
 static inline void transmit_chars(struct linmodem_port *p)
 {
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
 	struct circ_buf *xmit = &p->port.info->xmit;
+#else
+	struct circ_buf *xmit = &p->port.state->xmit;
+#endif
 	int count;
 
 	dbg();
@@ -555,7 +561,11 @@ static inline void check_modem_status(struct linmodem_port *p)
 	if (status & UART_MSR_DCTS)
 		uart_handle_cts_change(&p->port, status & UART_MSR_CTS);
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
 	wake_up_interruptible(&p->port.info->delta_msr_wait);
+#else
+	wake_up_interruptible(&p->port.state->port.delta_msr_wait);
+#endif
 }
 
 /*
@@ -1217,7 +1227,11 @@ int linmodem_register_port(struct uart_port *port)
 			err("Trying to register port again! Exiting");
 			goto exit;
 		}
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32) )
 		p->reg.state->port = NULL;
+#else
+		p->reg.state->uart_port = NULL;
+#endif
 		p->port.ops = &linmodem_pops;
 		ret = uart_add_one_port(&(p->reg), &(p->port));
 		if (ret == 0) {
