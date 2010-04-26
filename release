@@ -18,8 +18,7 @@ rm ${tmpdirname}/${relname}/fixup_relocs.c
 date > ${tmpdirname}/${relname}/manifest
 cvs -q stat >> ${tmpdirname}/${relname}/manifest
 # add the binary
-mkdir ${tmpdirname}/${relname}/lib
-cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/lib
+cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/esscom_bin.2.6.o_shipped
 # tar it up for release
 tar -C ${tmpdirname} -czf ./${relname}.tar.gz ${relname}
 # clean up directory
