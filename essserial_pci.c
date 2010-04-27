@@ -227,7 +227,11 @@ pci_ess_setup(struct pci_dev *dev, struct pci_board *board,
 	     dev->pretty_name, rev, port->iobase, port->irq);
 #else
 	info("Ess device[%s](0x%x) found %04x:%04x (rev %02x), "
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 	     "iobase=0x%x, irq=%d.", pci_name(dev), dev->devfn,
+#else
+	     "iobase=0x%lx, irq=%d.", pci_name(dev), dev->devfn,
+#endif
 	     dev->vendor, dev->device, rev, port->iobase, port->irq);
 #endif /* CONFIG_PCI_NAMES */
 
@@ -418,7 +422,11 @@ pciserial_init_one(struct pci_dev *dev, const struct pci_device_id *ent)
 		if (quirk->setup(dev, board, &serial_port, i))
 			break;
 
+#if LINUX_VERSION_CODE < KERNEL_VERSION(2,6,28)
 		info("Setup PCI port: port 0x%x, irq %d, type %d, "
+#else
+		info("Setup PCI port: port 0x%lx, irq %d, type %d, "
+#endif
 		     "membase %p, ops %p",
 		     serial_port.iobase, serial_port.irq, serial_port.iotype,
 		     serial_port.membase, serial_port.ops);

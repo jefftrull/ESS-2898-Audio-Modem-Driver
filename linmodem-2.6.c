@@ -410,7 +410,7 @@ receive_chars(struct linmodem_port *p, int *status, struct pt_regs *regs)
 {
 #if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,27) )
 	struct tty_struct *tty = p->port.info->tty;
-#elsif ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
+#elif ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,32)) 
 	struct tty_struct *tty = p->port.info->port.tty;
 #else
 	struct tty_struct *tty = p->port.state->port.tty;
