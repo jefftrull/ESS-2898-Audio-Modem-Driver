@@ -1,0 +1,78 @@
+Instructions for installing your ES2898 modem driver under Linux 2.6 kernels
+----------------------------------------------------------------------------
+1) unpack the driver:
+
+tar xvzf ess_2.6-v0.5.tar.gz
+
+2) run the installation script:
+
+cd ess_2.6-v0.5
+su
+(type your root password at the prompt)
+./setup
+
+This should install the driver modules into the kernel and create the
+"device special file" /dev/ttyS_ESS0 and a link from there to /dev/modem.  At
+this point you should be able to configure your modem using whatever method
+your distro supports and dial out using kppp or wvdial as appropriate.
+
+Some potential problems and their solutions:
+
+1) You reboot, and /dev/ttyS_ESS0 is no longer there
+
+This probably means the kernel modules are not being loaded at boot time.
+In most distributions there is a file that controls this - either /etc/modules
+or /etc/modprobe.conf.  You can edit these files as root, OR better yet, use
+whatever kernel module configuration tool is supplied by your distribution.
+For example, in SuSE you would run YaST->System->/etc/sysconfig Editor, from
+which you pick System->Kernel->MODULES_LOADED_ON_BOOT.  The modules you
+should list are "linmodem", "esscom_hw", and "esscom", in that order.
+
+
+2) You reboot, and /dev/ttyS_ESS0 is there but /dev/modem is not.
+
+Most distributions now use a method for creating the device special files called
+"udev".  The driver setup process tries to be clever about detecting this situation,
+but may have failed, or possibly detected udev when it was not present.  The
+easiest solution is to edit your modem configuration (e.g., through kppp or
+your distro's system configuration tool) to specify that the modem is
+/dev/ttyS_ESS0 instead of /dev/modem.
+
+If you have udev and the setup process did not detect it, it should be very simple
+to fix.  You need to create (as root) a file called /etc/udev/rules.d/ess.rules,
+with the following line inside:
+
+KERNEL=="ttyS_ESS0", SYMLINK="modem"
+
+after another reboot, or even sooner, /dev/modem should reappear.
+
+
+3) You see the following line in your system log:
+
+Apr 16 21:52:58 linux kernel: PPP: VJ decompression error
+
+I see that too, and I don't have an explanation... yet.  So far it appears to be harmless.
+
+
+4) I don't live in the USA.  How do I set my country code correctly?
+
+Take a look at the "country_code_list" file.  Hopefully your country is there.  If
+not, choose one whose dial tone, etc. is as similar as possible to yours.  You can
+either add a special parameter to the esscom module, by adding a line like this to
+/etc/modprobe.conf (or whatever your distro's module load file is):
+
+options esscom country_code=1
+
+(that example was for Japan, entry 1 in the country_code_list)
+
+or you can use a special AT command in the initialization string.  For Germany
+(entry 2), for example:
+
+AT*NC=2
+
+
+Please contact me if you experience any problems, or have a success story to report.
+
+Jeff Trull
+linmodemstudent@gmail.com
+16 April 2006
