@@ -99,13 +99,15 @@ BUGFIX_FLAGS = -m 0x1b22=0x80 \
 
 RELOC_FLAGS = $(NEW_RELOC_FLAGS) $(CHANGE_RELOC_FLAGS) $(DELETE_RELOC_FLAGS) $(BUGFIX_FLAGS) $(GLOBALIZE_BIN_SYM_FLAGS)
 
+BLOB_FILENAME = esspci111.zip
+
 esscom_bin.2.6.o_shipped: $(BIN_DIR)esscom_bin.o fixup_relocs
 	objcopy $(OBJCOPY_FLAGS) \
 	$(BIN_DIR)esscom_bin.o $(BIN_DIR)esscom_bin.cleaned.o
 	./fixup_relocs $(RELOC_FLAGS) $(BIN_DIR)esscom_bin.cleaned.o esscom_bin.2.6.o_shipped
 
-$(BIN_DIR)esscom_bin.o : 111.zip
-		   unzip 111.zip esscom.o -d $(BIN_DIR)
+$(BIN_DIR)esscom_bin.o : $(BLOB_FILENAME)
+		   unzip $(BLOB_FILENAME) esscom.o -d $(BIN_DIR)
 		   mv $(BIN_DIR)esscom.o $(BIN_DIR)esscom_bin.o
 		   touch $(BIN_DIR)esscom_bin.2.6.o
 

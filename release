@@ -1,27 +1,26 @@
 #!/bin/bash
-# script to create a tarball from the ESS driver CVS files
+# script to create a tarball from the ESS driver git repo files
 # jet 4/16/06
-# presumes we are above the top directory of an ESS dir
+# presumes we are in the top directory of an ESS repo
 # go find out what version we are
-ver=`fgrep '#define DRIVER_VERSION' ess/essserial-2.6.c | cut -d ' ' -f 3`
+ver=`fgrep '#define DRIVER_VERSION' essserial-2.6.c | cut -d ' ' -f 3`
 # strip double quotes
 ver=`eval echo $ver`
 relname=ess_2.6-${ver}
-tmpdirname=/tmp/${relname}_$$
-cvs -Q export -D today -d ${tmpdirname}/${relname} ess
-# remove myself and binary-creating stuff
-rm ${tmpdirname}/${relname}/release
-rm ${tmpdirname}/${relname}/Makefile.mungebin
-rm ${tmpdirname}/${relname}/fixup_relocs.c
+git archive --format=tar HEAD --output ./${relname}.tar
+# remove this script, and binary-creating stuff
+tar f ./${relname}.tar --delete release Makefile.mungebin fixup_relocs.c
+# give tarball users the README that is for them, not the one that's for package builders
+tar f ./${relname}.tar --delete README
+tar f ./${relname}.tar --delete README.install
+tar f ./${relname}.tar --transform s/README.install/README/ --append README.install
 
-# create a manifest with all the CVS versions
-date > ${tmpdirname}/${relname}/manifest
-cvs -q stat >> ${tmpdirname}/${relname}/manifest
+# create a manifest with all the file versions
+date > manifest
+git ls-tree HEAD >> manifest
 # add the binary
-cp ess/lib/esscom_bin.2.6.o ${tmpdirname}/${relname}/esscom_bin.2.6.o_shipped
-# tar it up for release
-tar -C ${tmpdirname} -czf ./${relname}.tar.gz ${relname}
+tar rf ./${relname}.tar manifest esscom_bin.2.6.o_shipped
 # clean up directory
-rm -rf ${tmpdirname}
+rm manifest
+gzip ./${relname}.tar
 echo created distribution tarball ${relname}.tar.gz in current directory
-

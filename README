@@ -5,3 +5,14 @@ In order to build the tarball with this code, you will also need a copy of the o
 http://linmodems.technion.ac.il/packages/esspci111.zip
 
 The one I use has a SHA1 of 29cf07583c52cac1d0b2834672f6e55e6806bfd7 (as did the above).
+
+You also need an installed copy of the "binutils" software from GNU, which isn't normally available by default.  It contains the BFD library for modifying
+binary object files.  In Ubuntu this package is called "binutils-dev".
+
+Recommended build flow:
+
+wget http://linmodems.technion.ac.il/packages/esspci111.zip
+make -f Makefile.mungebin
+./release
+
+(You should now have a properly named tarball in the working directory)
