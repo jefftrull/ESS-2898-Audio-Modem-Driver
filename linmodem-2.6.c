@@ -22,6 +22,9 @@
  *  membase is an 'ioremapped' cookie.
  */
 #include <linux/version.h>
+#if ( LINUX_VERSION_CODE >= KERNEL_VERSION(2,6,11) )
+#include <linux/slab.h>
+#endif
 
 #include <linux/module.h>
 #include <linux/ioport.h>
@@ -77,7 +80,11 @@ MODULE_PARM_DESC(debug, "Debugging mode enabled or not");
 
 
 
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36) )
 static DECLARE_MUTEX(linmodem_sem);
+#else
+static DEFINE_SEMAPHORE(linmodem_sem);
+#endif
 
 struct linmodem_port_list {
 	struct list_head     list;
@@ -1191,9 +1198,11 @@ EXPORT_SYMBOL(linmodem_resume_port);
  * 16x50 serial ports to be configured at run-time, to support PCMCIA
  * modems and PCI multiport cards.
  */
+#if ( LINUX_VERSION_CODE < KERNEL_VERSION(2,6,36) )
 static DECLARE_MUTEX(serial_sem);
-
-
+#else
+static DEFINE_SEMAPHORE(serial_sem);
+#endif
 
 /**
  *	linmodem_register_port - register a serial port

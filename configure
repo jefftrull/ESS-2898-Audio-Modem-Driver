@@ -222,7 +222,12 @@ if [[ `perl -v` ]]
 then
     if [ -n "$kernel_override" ]
     then
-	kernel_version=`perl -ne 'if (/CONFIG_KERNELVERSION\W+\"(\d+\.\d+\.\d+)/) {print "$1\n"}' ${kernel_inc}/linux/autoconf.h`
+	if [ -r ${kernel_inc}/generated/autoconf.h ]
+	then
+	    kernel_version=`perl -ne 'if (/CONFIG_KERNELVERSION\W+\"(\d+\.\d+\.\d+)/) {print "$1\n"}' ${kernel_inc}/generated/autoconf.h`
+	else
+	    kernel_version=`perl -ne 'if (/CONFIG_KERNELVERSION\W+\"(\d+\.\d+\.\d+)/) {print "$1\n"}' ${kernel_inc}/linux/autoconf.h`
+	fi
     else
 	kernel_version=`uname -r`
     fi
@@ -314,20 +319,30 @@ if [ $kernel_inc = "error" ]
 then
    exit 1
 fi
+# Sometimes autoconf.h and utsrelease.h are in include/generated/ instead of include/linux
+if [ -r ${kernel_inc}/linux/autoconf.h ]
+then
+   kernel_inc_generated=${kernel_inc}/linux
+elif [ -r ${kernel_inc}/generated/autoconf.h ]
+then
+   kernel_inc_generated=${kernel_inc}/generated
+fi
+
 
 #
 # find modversions.h (2.4) or autoconf.h (2.6)
 # on 2.6 check for asm/mach-default and modpost
 #
-   echo -n "checking for autoconf.h..."
-   if [ ! -r ${kernel_inc}/linux/autoconf.h ]
-   then
-      echo "** error"
-      echo autoconf.h could not be found
-      echo you probably need to configure your kernel, please read the FAQ
-      echo about no autoconf.h file.
-      exit 1
-   fi
+echo using ${kernel_inc_generated} to find autoconf
+echo -n "checking for autoconf.h..."
+if [ ! -r ${kernel_inc_generated}/autoconf.h ]
+then
+    echo "** error"
+    echo autoconf.h could not be found
+    echo you probably need to configure your kernel, please read the FAQ
+    echo about no autoconf.h file.
+    exit 1
+fi
 
 #
 # find out exact kernel version from version.h file
@@ -342,7 +357,7 @@ fi
 echo -n "checking for kernel version in $versionfile..."
 cat >t.c <<EOF
 #include <stdio.h>
-#include "$kernel_inc/linux/$versionfile"
+#include "${kernel_inc_generated}/$versionfile"
 int main() {
    printf("%s\n", UTS_RELEASE);
    return 0;
