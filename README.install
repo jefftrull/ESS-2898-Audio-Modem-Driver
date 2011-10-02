@@ -2,11 +2,11 @@ Instructions for installing your ES2898 modem driver under Linux 2.6 kernels
 ----------------------------------------------------------------------------
 1) unpack the driver:
 
-tar xvzf ess_2.6-v0.5.tar.gz
+tar xvzf ess_2.6-v0.7.tar.gz
 
 2) run the installation script:
 
-cd ess_2.6-v0.5
+cd ess_2.6-v0.7
 su
 (type your root password at the prompt)
 ./setup
