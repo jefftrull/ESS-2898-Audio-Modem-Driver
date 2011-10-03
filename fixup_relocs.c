@@ -79,54 +79,6 @@ static void setup_bfd_headers (bfd *, bfd *);
 static void copy_section_relocs_edit (bfd *, asection *, void *);
 static void copy_section_data (bfd *, asection *, void *);
 
-void process_section_relocs (bfd *ibfd, asection *sect, bfd *obfd) {
-    long relsize, relcount;
-    arelent **relpp;
-    asymbol **sympp;
-
-    if (strcmp(bfd_get_section_name(ibfd, sect), ".text") == 0) {
-	long i;
-	relsize = bfd_get_reloc_upper_bound (ibfd, sect);
-	sympp = (asymbol **)malloc(bfd_get_symtab_upper_bound(ibfd));
-	bfd_canonicalize_symtab (ibfd, sympp);
-	relpp = (arelent **)malloc ((size_t)relsize);
-	relcount = bfd_canonicalize_reloc (ibfd, sect, relpp, sympp);
-
-	/* create a new relocation array for the output */
-
-	/* loop through the reloc records */
-	for (i = 0; i < relcount; i++) {
-	    printf("%-30s%10x%10x%10s\n", bfd_asymbol_name (*relpp[i]->sym_ptr_ptr),
-		   relpp[i]->address, relpp[i]->addend, relpp[i]->howto->name);
-	}
-    }
-}  
-	       
-void print_text_section_relocs (bfd *abfd, asection *sect, PTR some_object) {
-    long relsize, relcount;
-    arelent **relpp;
-    asymbol **sympp;
-
-    if (strcmp(bfd_get_section_name(abfd, sect), ".text") == 0) {
-	long i;
-	relsize = bfd_get_reloc_upper_bound (abfd, sect);
-	sympp = (asymbol **)malloc(bfd_get_symtab_upper_bound(abfd));
-	bfd_canonicalize_symtab (abfd, sympp);
-	printf("found text section of size %x\n", bfd_get_section_size(sect));
-	relpp = (arelent **)malloc ((size_t)relsize);
-	relcount = bfd_canonicalize_reloc (abfd, sect, relpp, sympp);
-	printf("reloc records are as follows:\n");
-	for (i = 0; i < relcount; i++) {
-	    printf("%-30s%10x%10x%10s\n", bfd_asymbol_name (*relpp[i]->sym_ptr_ptr),
-		   relpp[i]->address, relpp[i]->addend, relpp[i]->howto->name);
-	}
-    }
-    else {
-	printf("section name %s is not the same as \".text\"\n", bfd_get_section_name(abfd, sect));
-    }
-}  
-	       
-
 /* find and return a change command relating to a particular reloc */
 struct change_reloc_struct *find_change_reloc (const char *name, change_reloc_struct *change_list_head) {
     change_reloc_struct *change_ptr;
@@ -205,7 +157,8 @@ main (int argc, char **argv) {
 		new_modify->location = strtol(optarg, NULL, 0);
 		new_modify->value = strtol(index(optarg, '=') + 1, NULL, 0);
 		if (new_modify->value > 0xff) {
-		    fprintf(stderr, "requested modify value %x for location %x exceeds 0xff\n");
+		    fprintf(stderr, "requested modify value %lx for location %lx exceeds 0xff\n",
+			    new_modify->value, new_modify->location);
 		    exit(1);
 		}
 		new_modify->next = modify_bytes;
@@ -237,7 +190,7 @@ main (int argc, char **argv) {
 
     /* if I don't do "check_format", there's no data in the bfd object.  wtf? */
     if (!bfd_check_format(ibfd, bfd_object)) {
-	fprintf(stderr, "input file %x seems to NOT be an object file! exiting.\n", argv[optind]);
+	fprintf(stderr, "input file %s seems to NOT be an object file! exiting.\n", argv[optind]);
 	exit(1);
     }
 
@@ -334,7 +287,6 @@ main (int argc, char **argv) {
 	    new_sym->section = bfd_get_section_by_name (obfd, ".text");
 	    new_sym->value = new_reloc->loc;
 	    new_sym->flags = BSF_GLOBAL;
-	    printf("adding symbol %s (%x) to output symbol table at index %d\n", new_reloc->symbol_name, new_sym, symcount + added_symbol_cnt);
 	    osympp[symcount + added_symbol_cnt++] = new_sym;
 	    osympp[symcount + added_symbol_cnt] = NULL;
 	}
@@ -618,9 +570,6 @@ static void copy_section_relocs_edit (bfd *ibfd, sec_ptr isection, void *obfdarg
 	    }
 	    relpp[i]->sym_ptr_ptr = &(osympp[sym_idx]);
 	}
-	if ((temp_relcount * sizeof(arelent *)) >= (relsize + reloc_add_cnt * sizeof(arelent *))) {
-	    fprintf(stderr, "about to write past end of temp_relpp array! idx=%d, temp_relcount=%d\n", i, temp_relcount);
-	}
 	temp_relpp [temp_relcount++] = relpp [i];
     }
 
@@ -643,10 +592,6 @@ static void copy_section_relocs_edit (bfd *ibfd, sec_ptr isection, void *obfdarg
 	    if (new_reloc->howto == NULL) {
 		fprintf(stderr, "could not get howto back from bfd subsystem\n");
 		exit(1);
-	    }
-
-	    if ((temp_relcount * sizeof(arelent *)) >= (relsize + reloc_add_cnt * sizeof(arelent *))) {
-		fprintf(stderr, "about to write past end of temp_relpp array with an add_reloc! temp_relcount=%d\n", temp_relcount);
 	    }
 
 	    temp_relpp[temp_relcount++] = new_reloc;
