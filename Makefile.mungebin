@@ -6,7 +6,7 @@ GLOBALIZE_BIN_SYM_FLAGS = -G rs_interrupt_single -G esscom_info
 # symbols from the ESS binary that must be "weakened" so we get no warnings when we override them
 WEAKEN_BIN_SYM_FLAGS = -W modem_task -W Get_System_Time -W systemTime -W ChkBlkTime -W esscom_initialize -W CurrentBlkTime -W init_module -W cleanup_module
 
-OBJCOPY_FLAGS = $(WEAKEN_BIN_SYM_FLAGS)
+OBJCOPY_FLAGS = $(WEAKEN_BIN_SYM_FLAGS) --remove-section=.modinfo
 
 # new relocation entries to add to the binary so that our substitute routines will be called
 NEW_RELOC_FLAGS = -a ChkBlkTime,0xc467 \
