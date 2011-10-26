@@ -100,9 +100,6 @@ struct linmodem_port_list linmodem_ports;
  */
 unsigned int share_irqs = 0;
 
-spinlock_t driver_lock = SPIN_LOCK_UNLOCKED;
-
-
 /*
  * We default to IRQ0 for the "no irq" hack.   Some
  * machine types want others as well - they're free

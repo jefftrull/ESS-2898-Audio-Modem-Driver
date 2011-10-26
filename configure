@@ -251,11 +251,11 @@ sub=`echo ${kernel_version} | perl -e 'while(<>){
   print "$3\n";
 }'`
 
-if [ ${main} -ne 2 -o ${mid} -ne 6 ]
+if [ ${main} -lt 2 -o ${main} -eq 2 -a ${mid} -lt 6 ]
 then
    echo '** error'
    echo your kernel version is: ${main}.${mid}.${sub}
-   echo this package supports only 2.6 kernels.
+   echo this package supports only 2.6 and above kernels.
    exit 1
 fi
 
@@ -266,7 +266,7 @@ echo "${main}.${mid}.${sub}"
 # clean everything
 #
 rm -f Makefile
-make -f Makefile-${main}.${mid}.in clean >/dev/null
+make -f Makefile-2.6.in clean >/dev/null
 
 
 #
@@ -348,7 +348,7 @@ fi
 # find out exact kernel version from version.h file
 #
 # UTS_RELEASE stops being defined in version.h at 2.6.18
-if [ $mid -eq 6 -a $sub -ge 18 ]
+if [ $mid -eq 6 -a $sub -ge 18 -o $main -ge 3 ]
 then
 versionfile="utsrelease.h"
 else
@@ -448,4 +448,4 @@ UDEV=${have_udev}
 
 EOF
 
-cat Makefile-${main}.${mid}.in >> Makefile
+cat Makefile-2.6.in >> Makefile
