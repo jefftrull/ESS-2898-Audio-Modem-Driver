@@ -28,3 +28,6 @@ v0.5 Updates through 2.6.27
 v0.6 Updates through 2.6.31
      a few more structs changing name in the tty subsystem
      support for DKMS (with help from Marvin Stodolsky)
+
+v0.7 For 3.0.0 kernels.  Just a little bit of cleanup.
+

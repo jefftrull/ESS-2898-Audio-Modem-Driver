@@ -71,6 +71,17 @@ or you can use a special AT command in the initialization string.  For Germany
 AT*NC=2
 
 
+For coders:
+
+If you are interested in working with this driver, a great way to see the full build environment
+(which generates the modified "binary blob" etc.) and to suggest changes is to clone my github project:
+
+https://github.com/jefftrull/ESS-2898-Audio-Modem-Driver
+
+I'm happy to accept pull requests that fix bugs or clean up the code.  And if I'm not responsive enough,
+you can fork it yourself :)
+
+
 Please contact me if you experience any problems, or have a success story to report.
 
 Jeff Trull
